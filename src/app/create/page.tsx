@@ -166,8 +166,8 @@ export default function CreateGigPage() {
       <CardContent className="flex-grow pt-4 space-y-2">
         <p className="text-sm text-muted-foreground h-24 overflow-y-auto custom-scrollbar">{pkg.description}</p>
         <div className="text-sm space-y-1 pt-2">
-          <p><strong>Delivery:</strong> <Badge variant="outline">{pkg.deliveryTime}</Badge></p>
-          <p><strong>Revisions:</strong> <Badge variant="outline">{pkg.revisions}</Badge></p>
+          <div><strong>Delivery:</strong> <Badge variant="outline">{pkg.deliveryTime}</Badge></div>
+          <div><strong>Revisions:</strong> <Badge variant="outline">{pkg.revisions}</Badge></div>
         </div>
       </CardContent>
     </Card>
@@ -499,3 +499,4 @@ export default function CreateGigPage() {
     </div>
   );
 }
+
