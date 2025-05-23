@@ -29,7 +29,8 @@ import {
   TagsIcon,
   TrendingUp, 
   BookCopy,
-  LogOut
+  LogOut,
+  Download
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -143,7 +144,14 @@ export default function CreateGigPage() {
     } catch (error: any) {
       clearInterval(progressInterval);
       setProgress(100); 
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+      let errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred.';
+      if (error.message && (error.message.includes("auth/unauthorized-domain") || error.message.includes("FIREBASE AUTH ERROR"))) {
+        // Specific message is already formatted in firebase.ts
+        errorMessage = error.message;
+      } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded"))) {
+        errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + error.message + ")";
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Generation Failed',
@@ -201,6 +209,23 @@ export default function CreateGigPage() {
     }
   };
 
+  const handleDownloadImage = () => {
+    if (gigData?.imageDataUri) {
+      const link = document.createElement('a');
+      link.href = gigData.imageDataUri;
+      // Extract file extension or default to png
+      const mimeType = gigData.imageDataUri.substring(gigData.imageDataUri.indexOf(':') + 1, gigData.imageDataUri.indexOf(';'));
+      const extension = mimeType.split('/')[1] || 'png';
+      link.download = `fiverr-ace-gig-image.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast({ title: 'Image Download Started', description: `Downloading fiverr-ace-gig-image.${extension}` });
+    } else {
+      toast({ variant: 'destructive', title: 'Download Failed', description: 'Image data is not available.' });
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
@@ -211,8 +236,6 @@ export default function CreateGigPage() {
   }
 
   if (!currentUser) {
-    // This case should ideally be handled by the redirect in useEffect,
-    // but it's a fallback.
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
         <AlertTriangle className="h-12 w-12 text-destructive" />
@@ -253,45 +276,60 @@ export default function CreateGigPage() {
             padding-bottom: 0.3rem;
         }
         .markdown-content ul {
-            list-style-type: disc;
-            margin-left: 1.25rem; /* ml-5 */
+            list-style-type: none; /* Remove default bullets */
+            margin-left: 0.5rem; /* Adjusted margin */
             margin-bottom: 1rem; /* mb-4 */
-            padding-left: 0.5rem;
+            padding-left: 0; /* Remove default padding */
+        }
+        .markdown-content ul li {
+            padding-left: 1.5em; /* Space for emoji/bullet */
+            text-indent: -1.5em; /* Align text after emoji */
+            margin-bottom: 0.5rem;
+            line-height: 1.65;
+            color: hsl(var(--muted-foreground));
+        }
+        .markdown-content ul li::before {
+            content: "✔ "; /* Default to green tick if not specified otherwise */
+            color: hsl(var(--primary)); /* Green tick color */
+            margin-right: 0.5em;
+            font-weight: bold;
         }
          .markdown-content p {
             margin-bottom: 0.75rem; /* mb-3 */
             line-height: 1.65;
+            color: hsl(var(--muted-foreground));
         }
         .markdown-content strong {
             color: hsl(var(--foreground));
             font-weight: 600;
         }
       `}</style>
-      <header className="w-full max-w-5xl mb-10">
+      <header className="w-full max-w-5xl mb-10 p-4 rounded-lg bg-card shadow-md">
         <div className="flex justify-between items-center">
-            <div className="flex items-center">
-                <div className="inline-flex items-center justify-center p-2.5 bg-primary rounded-full mr-3 shadow-lg">
-                <Sparkles className="h-8 w-8 text-primary-foreground" />
+            <div className="flex items-center space-x-3">
+                <div className="inline-flex items-center justify-center p-2.5 bg-primary rounded-full shadow-lg">
+                  <Sparkles className="h-7 w-7 text-primary-foreground" />
                 </div>
                 <div>
-                    <h1 className="text-4xl font-bold text-primary tracking-tight">Fiverr Ace</h1>
-                    <p className="text-lg text-muted-foreground">
+                    <h1 className="text-3xl font-bold text-primary tracking-tight">Fiverr Ace</h1>
+                    <p className="text-md text-muted-foreground">
                     Craft your high-converting Fiverr gig with AI precision.
                     </p>
                 </div>
             </div>
             {currentUser && (
-            <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign Out
-            </Button>
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-foreground">{currentUser.displayName || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{currentUser.email}</p>
+                </div>
+                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                </Button>
+              </div>
             )}
         </div>
-         {currentUser && (
-            <p className="text-sm text-muted-foreground mt-2 text-left">
-                Signed in as: {currentUser.displayName || currentUser.email}
-            </p>
-        )}
       </header>
 
       <main className="w-full max-w-5xl bg-card p-6 sm:p-10 rounded-2xl shadow-2xl">
@@ -395,20 +433,10 @@ export default function CreateGigPage() {
             </GigResultSection>
 
             <GigResultSection title="Compelling Gig Description" icon={FileText}>
-              <div className="p-5 bg-secondary rounded-lg shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[450px] overflow-y-auto text-foreground">
-                {gigData.description?.split('\\n').map((paragraph, index) => {
-                  if (paragraph.startsWith('### ')) {
-                    return <h3 key={index}>{paragraph.substring(4)}</h3>;
-                  }
-                  if (paragraph.startsWith('- ')) {
-                     return <ul key={index} className="list-disc list-inside ml-0"><li className="text-muted-foreground">{paragraph.substring(2)}</li></ul>;
-                  }
-                  if (paragraph.startsWith('✔ ')) {
-                     return <p key={index} className="flex items-center text-muted-foreground"><CheckSquare className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />{paragraph.substring(2)}</p>;
-                  }
-                  return <p key={index} className="text-muted-foreground">{paragraph}</p>;
-                })}
-              </div>
+                <div 
+                    className="p-5 bg-secondary rounded-lg shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[450px] overflow-y-auto text-foreground"
+                    dangerouslySetInnerHTML={{ __html: gigData.description?.replace(/\\n/g, '<br/>').replace(/### (.*?)<br\/>/g, '<h3>$1</h3>').replace(/^- (.*?)(<br\/>|$)/gm, '<ul><li>$1</li></ul>').replace(/✔ (.*?)(<br\/>|$)/gm, '<ul><li>✔ $1</li></ul>').replace(/🏆 (.*?)(<br\/>|$)/gm, '<ul><li>🏆 $1</li></ul>') || '' }}
+                />
             </GigResultSection>
 
             <GigResultSection title="Frequently Asked Questions (FAQs)" icon={HelpCircle}>
@@ -435,7 +463,7 @@ export default function CreateGigPage() {
             </GigResultSection>
 
             <GigResultSection title="AI Generated Gig Image" icon={ImageIcon}>
-                <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center">
+                <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-4">
                 {gigData.imageDataUri ? (
                   <Image
                     src={gigData.imageDataUri}
@@ -454,7 +482,13 @@ export default function CreateGigPage() {
                     <p className="ml-3 text-muted-foreground">Image loading or not available...</p>
                   </div>
                 )}
-                <p className="text-sm text-muted-foreground mt-5 text-center max-w-md">
+                {gigData.imageDataUri && (
+                  <Button onClick={handleDownloadImage} variant="outline" className="shadow-md">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Image
+                  </Button>
+                )}
+                <p className="text-sm text-muted-foreground text-center max-w-md">
                   This image was AI-generated. Fiverr recommends 1280x769px. Use this as inspiration or for quick mockups.
                 </p>
               </div>
@@ -499,4 +533,3 @@ export default function CreateGigPage() {
     </div>
   );
 }
-
