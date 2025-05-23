@@ -21,6 +21,7 @@ import {
   Sparkles,
   TagsIcon,
   LayersIcon, // For subcategory
+  MessageSquareText // For image prompt
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -34,8 +35,8 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData } from './actions'; // PricingPackage type removed as GigData.pricing is now GeneratePackageDetailsOutput
-import type { GeneratePackageDetailsOutput, PackageDetailSchema as SinglePackageDetail } from '@/ai/schemas/gig-generation-schemas'; // Import schema type
+import { generateFullGig, type GigData } from './actions';
+import type { SinglePackageDetail } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -61,24 +62,19 @@ export default function FiverrAcePage() {
     setIsLoading(true);
     setGigData(null);
     setProgress(0);
-
-    const totalSteps = 8; // Title, Category, Tags, PricingSuggest, DetailedPricing, Image, Desc/FAQ, Requirements
-    let completedSteps = 0;
     
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        // Don't let simulated progress exceed 90 until actual completion
-        if (prev >= 90 && !gigData) { // Check gigData to see if final result is in
-          return 90;
+        if (prev >= 95 && !gigData) { 
+          return 95;
         }
         if (prev >= 100) {
             clearInterval(progressInterval);
             return 100;
         }
-        // Increment progress more slowly now that image generation is involved
-        return prev + 2 > 90 && !gigData ? 90 : prev + 2; 
+        return prev + 1 > 95 && !gigData ? 95 : prev + 1; 
       });
-    }, 300); // Slower interval
+    }, 250); 
 
     try {
       const result = await generateFullGig(data.mainKeyword);
@@ -114,11 +110,9 @@ export default function FiverrAcePage() {
     }
   };
   
-  // Updated to take SinglePackageDetail type (from Zod schema)
   const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => ( 
     <Card key={pkg.title || tierName} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="bg-secondary rounded-t-lg">
-        {/* Using the example format: Basic – $95: Basic homepage design */}
         <CardTitle className="text-lg font-semibold text-primary">
             {tierName} – ${pkg.price}: <span className="text-base font-normal text-foreground">{pkg.title}</span>
         </CardTitle>
@@ -150,6 +144,25 @@ export default function FiverrAcePage() {
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: hsl(var(--primary)); 
+        }
+        /* For markdown h3 */
+        .markdown-content h3 {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            margin-top: 1rem; /* mt-4 */
+            margin-bottom: 0.5rem; /* mb-2 */
+            color: hsl(var(--primary)); /* text-primary */
+            border-bottom: 2px solid hsl(var(--accent));
+            padding-bottom: 0.25rem;
+        }
+        .markdown-content ul {
+            list-style-type: disc;
+            margin-left: 1.5rem; /* ml-6 */
+            margin-bottom: 1rem; /* mb-4 */
+        }
+         .markdown-content p {
+            margin-bottom: 0.75rem; /* mb-3 */
+            line-height: 1.6;
         }
       `}</style>
       <header className="w-full max-w-4xl mb-8 text-center">
@@ -226,7 +239,6 @@ export default function FiverrAcePage() {
               </GigResultSection>
             </div>
 
-
             <GigResultSection title="Search Tags" icon={TagsIcon}>
               <div className="flex flex-wrap gap-2 p-4 bg-secondary rounded-md shadow-inner">
                 {gigData.searchTags?.map((tag) => (
@@ -246,13 +258,21 @@ export default function FiverrAcePage() {
             </GigResultSection>
 
             <GigResultSection title="Gig Description" icon={FileText}>
-               {/* Ideally, use a Markdown renderer here if available, or sanitize HTML if Markdown includes it. For now, Textarea for simplicity */}
-              <Textarea
-                value={gigData.description}
-                readOnly
-                className="min-h-[250px] text-base bg-secondary rounded-md shadow-inner p-4 focus-visible:ring-accent custom-scrollbar"
-                aria-label="Generated Gig Description"
-              />
+              {/* Basic Markdown rendering by splitting into paragraphs. 
+                  For full Markdown, a library like 'react-markdown' would be needed. */}
+              <div className="p-4 bg-secondary rounded-md shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[400px] overflow-y-auto">
+                {gigData.description?.split('\n').map((paragraph, index) => {
+                  if (paragraph.startsWith('### ')) {
+                    return <h3 key={index}>{paragraph.substring(4)}</h3>;
+                  }
+                  if (paragraph.startsWith('- ')) {
+                    // This is a simplified list item rendering.
+                    // A full Markdown parser would handle nested lists and other elements better.
+                    return <ul key={index} className="list-disc list-inside ml-4"><li className="text-muted-foreground">{paragraph.substring(2)}</li></ul>;
+                  }
+                  return <p key={index} className="text-muted-foreground">{paragraph}</p>;
+                })}
+              </div>
             </GigResultSection>
 
             <GigResultSection title="FAQs" icon={HelpCircle}>
@@ -285,29 +305,39 @@ export default function FiverrAcePage() {
                     src={gigData.imageDataUri}
                     alt="AI Generated Gig Image"
                     width={600} 
-                    height={338} // Common 16:9 aspect ratio based on 1280x720 or similar
+                    height={400} // Adjusted to a common 4:3 or similar for gig images
                     className="rounded-md border border-border shadow-md object-cover"
-                    data-ai-hint="professional service relevant" // Generic hint if specific keywords are hard
+                    data-ai-hint="professional service relevant"
                   />
                 ) : (
                   <div 
-                    className="w-full max-w-[600px] aspect-[16/9] bg-muted rounded-md flex items-center justify-center border border-border shadow-md"
+                    className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-md flex items-center justify-center border border-border shadow-md" // 3:2 aspect ratio
                     data-ai-hint="placeholder service"
                   >
                     <p className="text-muted-foreground">Image loading or not available...</p>
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground mt-4 text-center">
-                  This image was AI-generated. Fiverr recommends 1280x769px (approx 16:9). Use this as inspiration.
+                  This image was AI-generated. Fiverr recommends 1280x769px. Use this as inspiration.
                 </p>
               </div>
             </GigResultSection>
+
+            {gigData.imagePrompt && (
+              <GigResultSection title="Generated Image Prompt (for AI)" icon={MessageSquareText}>
+                <Textarea
+                  value={gigData.imagePrompt}
+                  readOnly
+                  className="min-h-[100px] text-sm bg-secondary rounded-md shadow-inner p-4 focus-visible:ring-accent custom-scrollbar"
+                  aria-label="Generated Image Prompt"
+                />
+              </GigResultSection>
+            )}
             
             <div className="text-center mt-12">
               <Button 
                 onClick={() => {
-                    setGigData(null); // Clear previous results
-                    // Ideally, also reset the form if useForm's reset is available and configured
+                    setGigData(null); 
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
