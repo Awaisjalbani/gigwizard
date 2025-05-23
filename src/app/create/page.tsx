@@ -226,6 +226,23 @@ export default function CreateGigPage() {
     }
   };
 
+  const formatDescription = (description: string | undefined): string => {
+    if (!description) return '';
+    return description
+      .replace(/\\n/g, '\n') // Normalize escaped newlines first
+      .replace(/\n/g, '<br/>') // Convert actual newlines to <br/>
+      .replace(/^### (.*?)(<br\s*\/?>|$)/gm, '<h3>$1</h3>') // Headings
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold **text**
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')     // Bold __text__
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')       // Italic *text*
+      .replace(/_(.*?)_/g, '<em>$1</em>')         // Italic _text_
+      // Lists: Wrap each item in its own <ul> for now, CSS will handle spacing
+      .replace(/^- (.*?)(<br\s*\/?>|$)/gm, '<ul><li>$1</li></ul>') 
+      .replace(/^✔ (.*?)(<br\s*\/?>|$)/gm, '<ul><li><span class="emoji-bullet">✔</span> $1</li></ul>')
+      .replace(/^🏆 (.*?)(<br\s*\/?>|$)/gm, '<ul><li><span class="emoji-bullet">🏆</span> $1</li></ul>');
+  };
+
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
@@ -266,6 +283,7 @@ export default function CreateGigPage() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: hsl(var(--primary)); 
         }
+
         .markdown-content h3 {
             font-size: 1.2rem; /* text-lg */
             font-weight: 600; /* font-semibold */
@@ -276,32 +294,51 @@ export default function CreateGigPage() {
             padding-bottom: 0.3rem;
         }
         .markdown-content ul {
-            list-style-type: none; /* Remove default bullets */
-            margin-left: 0.5rem; /* Adjusted margin */
-            margin-bottom: 1rem; /* mb-4 */
-            padding-left: 0; /* Remove default padding */
+            list-style-type: none;
+            margin-left: 0; /* Reset margin, let li handle indentation if needed */
+            margin-bottom: 0; /* Critical for preventing large gaps between single-item ULs */
+            padding-left: 0;
         }
         .markdown-content ul li {
             padding-left: 1.5em; /* Space for emoji/bullet */
             text-indent: -1.5em; /* Align text after emoji */
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.65rem; /* Spacing between list items */
             line-height: 1.65;
             color: hsl(var(--muted-foreground));
         }
+        /* Default bullet for items that don't use emoji-bullet span */
         .markdown-content ul li::before {
-            content: "✔ "; /* Default to green tick if not specified otherwise */
-            color: hsl(var(--primary)); /* Green tick color */
-            margin-right: 0.5em;
+            content: "• "; /* Default bullet if no emoji span is used by the regex */
+            color: hsl(var(--primary)); 
+            margin-right: 0.5em; /* Adjust as needed */
             font-weight: bold;
+            /* Hide if emoji-bullet span is present */
+            display: inline-block; /* Needed for margin-right to work */
+        }
+        .markdown-content ul li .emoji-bullet + * { /* Ensure space after emoji span */
+           margin-left: 0.3em;
+        }
+        .markdown-content ul li:has(.emoji-bullet)::before {
+            content: ""; /* Hide default bullet if emoji-bullet span is present */
+            margin-right: 0;
+        }
+         .markdown-content ul li .emoji-bullet {
+            color: hsl(var(--primary));
+            /* margin-right: 0.5em; /* Handled by li padding-left and text-indent now */
+            font-weight: bold;
+            display: inline-block; /* Allows it to sit correctly with text-indent */
         }
          .markdown-content p {
-            margin-bottom: 0.75rem; /* mb-3 */
+            margin-bottom: 0.75rem; 
             line-height: 1.65;
             color: hsl(var(--muted-foreground));
         }
         .markdown-content strong {
             color: hsl(var(--foreground));
             font-weight: 600;
+        }
+        .markdown-content em {
+          font-style: italic;
         }
       `}</style>
       <header className="w-full max-w-5xl mb-10 p-4 rounded-lg bg-card shadow-md">
@@ -435,7 +472,7 @@ export default function CreateGigPage() {
             <GigResultSection title="Compelling Gig Description" icon={FileText}>
                 <div 
                     className="p-5 bg-secondary rounded-lg shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[450px] overflow-y-auto text-foreground"
-                    dangerouslySetInnerHTML={{ __html: gigData.description?.replace(/\\n/g, '<br/>').replace(/### (.*?)<br\/>/g, '<h3>$1</h3>').replace(/^- (.*?)(<br\/>|$)/gm, '<ul><li>$1</li></ul>').replace(/✔ (.*?)(<br\/>|$)/gm, '<ul><li>✔ $1</li></ul>').replace(/🏆 (.*?)(<br\/>|$)/gm, '<ul><li>🏆 $1</li></ul>') || '' }}
+                    dangerouslySetInnerHTML={{ __html: formatDescription(gigData.description) }}
                 />
             </GigResultSection>
 
@@ -533,3 +570,4 @@ export default function CreateGigPage() {
     </div>
   );
 }
+
