@@ -70,12 +70,16 @@ Generate the following three components:
         ### Let's Get Started! (Call to Action)
         💬 Ready for a Shopify store that stands out and sells? Message me today to discuss your project!
 
-3.  **Image Prompt** (for an AI image generator like DALL·E):
-    - Describe a professional Fiverr gig thumbnail image.
+3.  **Image Prompt** (for an AI image generator):
+    - Describe a professional, high-quality, and visually striking Fiverr gig thumbnail image.
     - Base it on the main keyword "{{mainKeyword}}" and the style/tone of the generated Gig Description and Title.
-    - Follow Fiverr’s image best practices: clear text (if any, related to title/service), professional 2D design preferred over photos, relevant to business context, high contrast.
-    - Make the prompt detailed and specific for generating a visually appealing and relevant gig image (e.g., "Modern flat design illustration for a '{{mainKeyword}}' gig, showcasing [key visual element related to service], using a [chosen tone, e.g., bold] color palette of [color1] and [color2]. Text overlay: '{{gigTitle}}'. Aspect ratio 16:9.").
-    - **Crucially, ensure this image prompt itself is distinct and substantially varied each time it is generated**, even for the same main keyword, by incorporating unique details from the generated title and description content and style.
+    - **Image Style:** Aim for a clean, modern, professional graphic design or high-quality illustration. Avoid overly complex photographic realism unless the gig is about photography. Ensure crisp details and sharp focus.
+    - **Text on Image:** If text is absolutely necessary for the visual, it must be MINIMAL, VERY SHORT (e.g., main keyword or 2-3 impactful words), bold, and highly legible. The AI image generator may struggle with complex text, so prioritize strong visuals over embedding text directly in the image. Consider if text is better handled by Fiverr's overlay options.
+    - **Logos/Icons:** Avoid attempting to replicate specific, existing brand logos. If icons are used, they should be generic, symbolic representations relevant to the service (e.g., a generic 'code' symbol for web development, not a specific company logo).
+    - **Content & Composition:** The image should clearly and creatively represent the service offered in an engaging way. Think about strong visual metaphors and a clear focal point.
+    - **Fiverr Best Practices:** Adhere to standard thumbnail aspect ratios (e.g., 16:9 or 4:3, common is 1280x769 pixels), ensure high contrast for readability, and maintain a business-professional context.
+    - **Specificity for AI:** The generated prompt should be detailed enough for an AI image generator to create a compelling and relevant image (e.g., "High-quality graphic design for '{{mainKeyword}}' gig. Features a central, stylized icon representing [service aspect], with a subtle, professional background pattern in [color1] and [color2]. Minimalist, bold text overlay at the bottom: '[Short, impactful phrase like main keyword]'. Clean aesthetic, sharp focus. Aspect ratio 16:9.").
+    - **Uniqueness:** CRITICAL! This image prompt MUST be substantially unique and creative each time, reflecting the specific details and angle of the generated Gig Title and Description. Do not repeat image prompt structures or core visual ideas.
 
 Output a JSON object with keys "gigTitle", "gigDescription", and "imagePrompt".
 `,
@@ -110,3 +114,4 @@ if (typeof global !== 'undefined') {
     (global as any).uniqueAngleFocus = uniqueAngleFocus;
   }
 }
+

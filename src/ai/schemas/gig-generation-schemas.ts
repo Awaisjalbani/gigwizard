@@ -73,7 +73,7 @@ export type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
 
 
 // --- Package Detail Generation Schemas ---
-export const SinglePackageDetailSchema = z.object({ // Renamed for clarity if used elsewhere
+export const SinglePackageDetailSchema = z.object({ 
   title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
   description: z.string().max(180, "Description must not exceed 180 characters.").describe('A detailed, benefit-oriented, and concise description (around 30 words, STRICTLY under 180 characters) of what is included in this package. Highlight key deliverables and unique selling points. This should be based on (simulated) deep research for the keyword and be unique each time.'),
@@ -165,6 +165,7 @@ export type GenerateTitleDescImgPromptInput = z.infer<typeof GenerateTitleDescIm
 export const GenerateTitleDescImgPromptOutputSchema = z.object({
   gigTitle: z.string().describe('Generated gig title, under 80 chars, SEO-optimized, persuasive, with a unique selling point.'),
   gigDescription: z.string().describe('Generated gig description in Markdown, structured with sections (hook, about, benefits, delivery, CTA), unique angle, and chosen tone.'),
-  imagePrompt: z.string().describe('A detailed prompt for an AI image generator, based on keyword and description style, following Fiverr best practices.'),
+  imagePrompt: z.string().describe('A detailed, unique prompt for an AI image generator, aiming for a high-quality, professional thumbnail. Should specify style (e.g., graphic design, illustration), content, and avoid complex text or specific logos, adhering to Fiverr best practices.'),
 });
 export type GenerateTitleDescImgPromptOutput = z.infer<typeof GenerateTitleDescImgPromptOutputSchema>;
+
