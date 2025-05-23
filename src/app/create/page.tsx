@@ -637,8 +637,8 @@ export default function CreateGigPage() {
                     </Button>
                   </div>
                 )}
-                <p className="text-sm text-muted-foreground text-center max-w-md">
-                  This image was AI-generated. Fiverr recommends 1280x769px. Use this as inspiration or for quick mockups.
+                <p className="text-xs text-muted-foreground text-center max-w-md px-4">
+                  Fiverr recommended size: 1280x769px. Min: 712x430px. Use this AI image as inspiration or for mockups.
                 </p>
               </div>
             </GigResultSection>
