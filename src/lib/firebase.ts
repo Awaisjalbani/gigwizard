@@ -7,7 +7,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDBP4kwaIvDxJ8VbLU-BriqGw7d80fiBz8",
   authDomain: "fiverr-ace.firebaseapp.com",
   projectId: "fiverr-ace",
-  storageBucket: "fiverr-ace.appspot.com", // Corrected from fiverr-ace.firebasestorage.app
+  storageBucket: "fiverr-ace.firebasestorage.app", // Reverted to user's originally provided value
   messagingSenderId: "353900402707",
   appId: "1:353900402707:web:1328577db049386194c7e6",
   measurementId: "G-JFE906QYQ2"
