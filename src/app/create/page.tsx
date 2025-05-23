@@ -1,3 +1,4 @@
+
 // src/app/create/page.tsx (Old src/app/page.tsx, now for authenticated users)
 'use client';
 
@@ -13,7 +14,7 @@ import { app as firebaseApp } from '@/lib/firebase'; // Ensure firebase is initi
 import {
   AlertTriangle,
   ArrowRight,
-  BarChart3, 
+  BarChart3,
   BadgeDollarSign,
   CheckSquare,
   FileText,
@@ -21,16 +22,17 @@ import {
   HelpCircle,
   ImageIcon,
   KeyRound,
-  LayersIcon, 
+  LayersIcon,
   Lightbulb,
   Loader2,
   MessageSquareText,
   Sparkles,
   TagsIcon,
-  TrendingUp, 
+  TrendingUp,
   BookCopy,
   LogOut,
-  Download
+  Download,
+  RefreshCw
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -44,7 +46,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData } from '../actions'; // Adjusted path
+import { generateFullGig, type GigData, refreshSearchTagsAction } from '../actions'; // Adjusted path
 import type { SinglePackageDetail, SearchTagAnalytics } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
@@ -63,6 +65,9 @@ export default function CreateGigPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [currentMainKeyword, setCurrentMainKeyword] = useState<string | null>(null);
+  const [isRefreshingTags, setIsRefreshingTags] = useState(false);
+
 
   useEffect(() => {
     const auth = getAuth(firebaseApp);
@@ -106,25 +111,26 @@ export default function CreateGigPage() {
 
     setIsLoading(true);
     setGigData(null);
+    setCurrentMainKeyword(null);
     setProgress(0);
-    
+
     const progressInterval = setInterval(() => {
        setProgress((prev) => {
-        if (prev >= 95 && !gigData) { 
-          return 95; 
+        if (prev >= 95 && !gigData) {
+          return 95;
         }
         if (prev >= 100) {
             clearInterval(progressInterval);
             return 100;
         }
         const increment = gigData ? 10 : (prev < 30 ? 5 : (prev < 70 ? 2 : 1));
-        return Math.min(prev + increment, 99); 
+        return Math.min(prev + increment, 99);
       });
     }, 300);
 
     try {
       const result = await generateFullGig(data.mainKeyword);
-      clearInterval(progressInterval); 
+      clearInterval(progressInterval);
       setProgress(100);
 
       if (result.error) {
@@ -134,8 +140,10 @@ export default function CreateGigPage() {
           description: result.error,
         });
         setGigData({ error: result.error });
+        setCurrentMainKeyword(null);
       } else {
         setGigData(result);
+        setCurrentMainKeyword(data.mainKeyword); // Store the keyword
         toast({
           title: 'Gig Generation Complete!',
           description: 'Your Fiverr gig components are ready.',
@@ -143,27 +151,70 @@ export default function CreateGigPage() {
       }
     } catch (error: any) {
       clearInterval(progressInterval);
-      setProgress(100); 
+      setProgress(100);
       let errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred.';
       if (error.message && (error.message.includes("auth/unauthorized-domain") || error.message.includes("FIREBASE AUTH ERROR"))) {
-        // Specific message is already formatted in firebase.ts
         errorMessage = error.message;
       } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded"))) {
         errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + error.message + ")";
       }
-      
+
       toast({
         variant: 'destructive',
         title: 'Generation Failed',
         description: errorMessage,
       });
       setGigData({ error: errorMessage });
+      setCurrentMainKeyword(null);
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => ( 
+
+  const handleRefreshTags = async () => {
+    if (!currentMainKeyword || !gigData || !gigData.title || !gigData.category || !gigData.subcategory) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Refresh Tags',
+        description: 'Initial gig data is missing. Please generate a gig first.',
+      });
+      return;
+    }
+
+    setIsRefreshingTags(true);
+    try {
+      const newTagsResult = await refreshSearchTagsAction({
+        mainKeyword: currentMainKeyword,
+        gigTitle: gigData.title,
+        category: gigData.category,
+        subcategory: gigData.subcategory,
+      });
+
+      if (Array.isArray(newTagsResult)) {
+        setGigData(prevData => ({ ...prevData, searchTags: newTagsResult, error: undefined }));
+        toast({
+          title: 'Search Tags Refreshed!',
+          description: 'A new set of optimized tags has been generated.',
+        });
+      } else if (newTagsResult.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error Refreshing Tags',
+          description: newTagsResult.error,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Refresh Tags',
+        description: error.message || 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsRefreshingTags(false);
+    }
+  };
+
+  const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => (
     <Card key={pkg.title || tierName} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300 bg-card">
       <CardHeader className="bg-secondary rounded-t-lg p-4">
         <CardTitle className="text-lg font-semibold text-primary">
@@ -172,7 +223,7 @@ export default function CreateGigPage() {
         <CardDescription className="text-sm text-foreground pt-1">{pkg.title}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow pt-4 space-y-2">
-        <p className="text-sm text-muted-foreground h-24 overflow-y-auto custom-scrollbar">{pkg.description}</p>
+        <div className="text-sm text-muted-foreground h-24 overflow-y-auto custom-scrollbar" dangerouslySetInnerHTML={{ __html: pkg.description.replace(/\n/g, '<br/>') }} />
         <div className="text-sm space-y-1 pt-2">
           <div><strong>Delivery:</strong> <Badge variant="outline">{pkg.deliveryTime}</Badge></div>
           <div><strong>Revisions:</strong> <Badge variant="outline">{pkg.revisions}</Badge></div>
@@ -182,16 +233,16 @@ export default function CreateGigPage() {
   );
 
   const getAnalyticsBadgeVariant = (level?: 'High' | 'Medium' | 'Low'): 'default' | 'secondary' | 'destructive' => {
-    if (level === 'High') return 'default'; 
-    if (level === 'Medium') return 'secondary'; 
-    if (level === 'Low') return 'destructive'; 
+    if (level === 'High') return 'default';
+    if (level === 'Medium') return 'secondary';
+    if (level === 'Low') return 'destructive';
     return 'outline';
   };
-  
+
   const getCompetitionBadgeVariant = (level?: 'High' | 'Medium' | 'Low'): 'destructive' | 'secondary' | 'default' => {
-    if (level === 'High') return 'destructive'; 
-    if (level === 'Medium') return 'secondary';   
-    if (level === 'Low') return 'default';    
+    if (level === 'High') return 'destructive';
+    if (level === 'Medium') return 'secondary';
+    if (level === 'Low') return 'default';
     return 'outline';
   };
 
@@ -236,10 +287,13 @@ export default function CreateGigPage() {
       .replace(/__(.*?)__/g, '<strong>$1</strong>')     // Bold __text__
       .replace(/\*(.*?)\*/g, '<em>$1</em>')       // Italic *text*
       .replace(/_(.*?)_/g, '<em>$1</em>')         // Italic _text_
-      // Lists: Wrap each item in its own <ul> for now, CSS will handle spacing
-      .replace(/^- (.*?)(<br\s*\/?>|$)/gm, '<ul><li>$1</li></ul>') 
-      .replace(/^✔ (.*?)(<br\s*\/?>|$)/gm, '<ul><li><span class="emoji-bullet">✔</span> $1</li></ul>')
-      .replace(/^🏆 (.*?)(<br\s*\/?>|$)/gm, '<ul><li><span class="emoji-bullet">🏆</span> $1</li></ul>');
+      .replace(/^(?:✔|🏆|-)\s*(.*?)(<br\s*\/?>|$)/gm, (match, content) => {
+        let bullet = '';
+        if (match.startsWith('✔')) bullet = '<span class="emoji-bullet">✔</span> ';
+        else if (match.startsWith('🏆')) bullet = '<span class="emoji-bullet">🏆</span> ';
+        else if (match.startsWith('-')) bullet = '<span class="emoji-bullet">•</span> '; // Or just use default li styling
+        return `<ul><li>${bullet}${content.trim()}</li></ul>`;
+      });
   };
 
 
@@ -253,6 +307,8 @@ export default function CreateGigPage() {
   }
 
   if (!currentUser) {
+    // This case should ideally be caught by the useEffect redirect,
+    // but as a fallback:
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
         <AlertTriangle className="h-12 w-12 text-destructive" />
@@ -273,15 +329,15 @@ export default function CreateGigPage() {
           width: 6px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: hsl(var(--secondary)); 
+          background: hsl(var(--secondary));
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: hsl(var(--primary) / 0.6); 
+          background: hsl(var(--primary) / 0.6);
           border-radius: 10px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: hsl(var(--primary)); 
+          background: hsl(var(--primary));
         }
 
         .markdown-content h3 {
@@ -289,47 +345,40 @@ export default function CreateGigPage() {
             font-weight: 600; /* font-semibold */
             margin-top: 1.25rem; /* mt-5 */
             margin-bottom: 0.75rem; /* mb-3 */
-            color: hsl(var(--primary)); 
+            color: hsl(var(--primary));
             border-bottom: 1px solid hsl(var(--accent) / 0.7);
             padding-bottom: 0.3rem;
         }
         .markdown-content ul {
             list-style-type: none;
-            margin-left: 0; /* Reset margin, let li handle indentation if needed */
-            margin-bottom: 0; /* Critical for preventing large gaps between single-item ULs */
+            margin-left: 0;
+            margin-bottom: 0; /* Prevents large gaps if each item is its own <ul> */
             padding-left: 0;
         }
         .markdown-content ul li {
-            padding-left: 1.5em; /* Space for emoji/bullet */
-            text-indent: -1.5em; /* Align text after emoji */
-            margin-bottom: 0.65rem; /* Spacing between list items */
+            padding-left: 1.5em;
+            text-indent: -1.5em;
+            margin-bottom: 0.65rem;
             line-height: 1.65;
             color: hsl(var(--muted-foreground));
         }
-        /* Default bullet for items that don't use emoji-bullet span */
-        .markdown-content ul li::before {
-            content: "• "; /* Default bullet if no emoji span is used by the regex */
-            color: hsl(var(--primary)); 
-            margin-right: 0.5em; /* Adjust as needed */
-            font-weight: bold;
-            /* Hide if emoji-bullet span is present */
-            display: inline-block; /* Needed for margin-right to work */
-        }
-        .markdown-content ul li .emoji-bullet + * { /* Ensure space after emoji span */
-           margin-left: 0.3em;
-        }
-        .markdown-content ul li:has(.emoji-bullet)::before {
-            content: ""; /* Hide default bullet if emoji-bullet span is present */
-            margin-right: 0;
-        }
-         .markdown-content ul li .emoji-bullet {
+        .markdown-content ul li .emoji-bullet {
             color: hsl(var(--primary));
-            /* margin-right: 0.5em; /* Handled by li padding-left and text-indent now */
             font-weight: bold;
-            display: inline-block; /* Allows it to sit correctly with text-indent */
+            display: inline-block; /* Corrects alignment with text-indent */
+            margin-right: 0.3em; /* Space between bullet and text */
+        }
+         /* Fallback for non-emoji bullets, if emoji-bullet span is NOT used by regex (e.g., for '-') */
+        .markdown-content ul li:not(:has(.emoji-bullet))::before {
+            content: "•"; /* Default bullet */
+            color: hsl(var(--primary));
+            font-weight: bold;
+            display: inline-block;
+            width: 1.5em; /* Align with emoji-bullet space */
+            text-align: left; /* Ensure bullet is at the start of the indent space */
         }
          .markdown-content p {
-            margin-bottom: 0.75rem; 
+            margin-bottom: 0.75rem;
             line-height: 1.65;
             color: hsl(var(--muted-foreground));
         }
@@ -360,7 +409,7 @@ export default function CreateGigPage() {
                   <p className="text-sm font-medium text-foreground">{currentUser.displayName || 'User'}</p>
                   <p className="text-xs text-muted-foreground">{currentUser.email}</p>
                 </div>
-                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading}>
+                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading || isRefreshingTags}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                 </Button>
@@ -382,13 +431,13 @@ export default function CreateGigPage() {
               placeholder="e.g., modern logo design, shopify store setup, react developer"
               className="text-base py-3 px-4 focus:border-primary focus:ring-primary"
               {...register('mainKeyword')}
-              disabled={isLoading}
+              disabled={isLoading || isRefreshingTags}
             />
             {errors.mainKeyword && (
               <p className="text-sm text-destructive mt-1.5">{errors.mainKeyword.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={isLoading}>
+          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={isLoading || isRefreshingTags}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
@@ -459,8 +508,22 @@ export default function CreateGigPage() {
                   </Card>
                 ))}
               </div>
+              <div className="mt-6 text-center">
+                <Button
+                  onClick={handleRefreshTags}
+                  variant="outline"
+                  disabled={isRefreshingTags || !currentMainKeyword || !gigData.title}
+                >
+                  {isRefreshingTags ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Refresh Tags
+                </Button>
+              </div>
             </GigResultSection>
-            
+
             <GigResultSection title="High-Converting Pricing Packages" icon={BadgeDollarSign}>
               <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
                 {gigData.pricing?.basic && renderPricingPackage(gigData.pricing.basic, "Basic")}
@@ -470,7 +533,7 @@ export default function CreateGigPage() {
             </GigResultSection>
 
             <GigResultSection title="Compelling Gig Description" icon={FileText}>
-                <div 
+                <div
                     className="p-5 bg-secondary rounded-lg shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[450px] overflow-y-auto text-foreground"
                     dangerouslySetInnerHTML={{ __html: formatDescription(gigData.description) }}
                 />
@@ -505,14 +568,14 @@ export default function CreateGigPage() {
                   <Image
                     src={gigData.imageDataUri}
                     alt="AI Generated Gig Image"
-                    width={600} 
-                    height={400} 
+                    width={600}
+                    height={400}
                     className="rounded-lg border-2 border-border shadow-lg object-cover"
                     data-ai-hint="professional service relevant"
                   />
                 ) : (
-                  <div 
-                    className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-lg flex items-center justify-center border-2 border-border shadow-md" 
+                  <div
+                    className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-lg flex items-center justify-center border-2 border-border shadow-md"
                     data-ai-hint="placeholder service"
                   >
                     <ImageIcon className="w-16 h-16 text-muted-foreground/50" />
@@ -541,12 +604,13 @@ export default function CreateGigPage() {
                 />
               </GigResultSection>
             )}
-            
+
             <div className="text-center mt-16">
-              <Button 
+              <Button
                 onClick={() => {
-                    setGigData(null); 
+                    setGigData(null);
                     setProgress(0);
+                    setCurrentMainKeyword(null);
                     reset({ mainKeyword: '' }); // Reset the form input
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
@@ -570,4 +634,3 @@ export default function CreateGigPage() {
     </div>
   );
 }
-

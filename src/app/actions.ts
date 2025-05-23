@@ -10,15 +10,16 @@ import { generateGigDescription as generateFaqsOnly } from '@/ai/flows/generate-
 import { suggestRequirements } from '@/ai/flows/suggest-requirements';
 import { generateGigImage } from '@/ai/flows/generate-gig-image';
 
-import type { 
+import type {
     GeneratePackageDetailsOutput,
     FAQ,
     SearchTagAnalytics,
-    SinglePackageDetail // Retained from previous version, seems like a UI helper type
+    SinglePackageDetail,
+    OptimizeSearchTagsInput
 } from '@/ai/schemas/gig-generation-schemas';
 
 
-export interface PricingPackageUi extends SinglePackageDetail { 
+export interface PricingPackageUi extends SinglePackageDetail {
   tierName: string;
 }
 
@@ -26,13 +27,13 @@ export interface GigData {
   title?: string;
   category?: string;
   subcategory?: string;
-  searchTags?: SearchTagAnalytics[]; 
-  pricing?: GeneratePackageDetailsOutput; 
-  description?: string; 
+  searchTags?: SearchTagAnalytics[];
+  pricing?: GeneratePackageDetailsOutput;
+  description?: string;
   faqs?: FAQ[];
   requirements?: string[];
   imageDataUri?: string;
-  imagePrompt?: string; 
+  imagePrompt?: string;
   error?: string;
 }
 
@@ -69,7 +70,7 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
 
     // Step 4: Suggest Package Pricing (Depends on Keyword, Category, Subcategory)
     const pricingSuggestionPromise = suggestPackagePricing({ keyword: mainKeyword, category, subcategory });
-    
+
     // Step 5: Generate Gig Image (Depends on Image Prompt from Step 1) - Start this early
     const imagePromise = generateGigImage({ imagePrompt }); // Pass the generated prompt
 
@@ -83,7 +84,7 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     if (!searchTags || searchTags.length === 0) throw new Error("Failed to optimize search tags.");
     if (!pricingSuggestionResult) throw new Error("Failed to suggest package pricing.");
 
-    // Step 6: Generate Detailed Pricing Packages 
+    // Step 6: Generate Detailed Pricing Packages
     const detailedPricingPromise = generatePackageDetails({
       mainKeyword,
       gigTitle,
@@ -93,12 +94,12 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       standardPrice: pricingSuggestionResult.standard,
       premiumPrice: pricingSuggestionResult.premium,
     });
-    
+
     // Step 7: Generate FAQs (using the original description flow, but primarily for its FAQ capability)
     const simulatedInsights = getSimulatedTopGigInsights(mainKeyword, category, subcategory);
     // Note: detailedPricingResult is awaited below before being passed here
-    
-    // Step 8: Suggest Requirements 
+
+    // Step 8: Suggest Requirements
     const requirementsPromise = suggestRequirements({
       gigTitle,
       gigCategory: category,
@@ -111,13 +112,13 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     incrementProgress(20); // +20% = 70%
     if (!detailedPricingResult) throw new Error("Failed to generate detailed pricing.");
 
-    const faqPromise = generateFaqsOnly({ 
-      mainKeyword, 
+    const faqPromise = generateFaqsOnly({
+      mainKeyword,
       gigTitle,
       category,
       subcategory,
       topPerformingGigInsights: simulatedInsights,
-      packageDetails: detailedPricingResult 
+      packageDetails: detailedPricingResult
     });
 
     const [faqResult, requirementsResult, imageResult] = await Promise.all([
@@ -125,22 +126,22 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
         requirementsPromise.then(res => { incrementProgress(10); return res; }), // +10% = 90%
         imagePromise.then(res => { incrementProgress(10); return res; }) // +10% = 100%
     ]);
-    
+
     const faqs = faqResult.faqs;
     if (!faqs || faqs.length === 0) throw new Error("Failed to generate FAQs.");
 
     const requirements = requirementsResult.requirements;
     if (!requirements || requirements.length === 0) throw new Error("Failed to suggest requirements.");
-    
+
     const imageDataUri = imageResult?.imageDataUri;
-    
+
     return {
       title: gigTitle,
       category: category,
       subcategory: subcategory,
-      searchTags: searchTags, 
+      searchTags: searchTags,
       pricing: detailedPricingResult,
-      description: gigDescription, 
+      description: gigDescription,
       faqs: faqs,
       requirements: requirements,
       imageDataUri: imageDataUri,
@@ -149,16 +150,40 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
   } catch (e: any) {
     console.error("Error generating full gig data:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to generate gig data due to an unknown error.';
-    
+
     if (e.message) {
         const lowerMessage = e.message.toLowerCase();
         if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters")) {
-            errorMessage = "Image generation failed. The AI might be unable to create an image for this specific request, or safety filters could be active. Please try a different keyword or check model capabilities.";
+            errorMessage = "Image generation failed. The AI might be unable to create an image for this specific request, or safety filters might have blocked it. Please try a different keyword or check model capabilities.";
         } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
             errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + e.message + ")";
+        } else if (lowerMessage.includes("auth/unauthorized-domain")) {
+          // This specific error message is now constructed in firebase.ts
+          errorMessage = e.message;
         }
     }
     return { error: errorMessage };
   }
 }
 
+export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): Promise<SearchTagAnalytics[] | { error: string }> {
+  if (!input.mainKeyword || !input.gigTitle || !input.category || !input.subcategory) {
+    return { error: 'Missing required input for refreshing search tags.' };
+  }
+  try {
+    const result = await optimizeSearchTags(input);
+    if (!result.searchTags || result.searchTags.length === 0) {
+      // This case should ideally be handled by the flow itself with fallbacks,
+      // but as a safeguard:
+      return { error: "AI failed to return any search tags." };
+    }
+    return result.searchTags;
+  } catch (e: any) {
+    console.error("Error refreshing search tags:", e);
+    let errorMessage = (e instanceof Error) ? e.message : 'Failed to refresh search tags due to an unknown error.';
+     if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
+        errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + e.message + ")";
+    }
+    return { error: errorMessage };
+  }
+}
