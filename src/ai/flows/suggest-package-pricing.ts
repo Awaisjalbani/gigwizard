@@ -58,9 +58,9 @@ const pricingPrompt = ai.definePrompt({
   prompt: `Based on the analysis of competitor gigs for the keyword "{{{keyword}}}",
   I suggest the following pricing for your Fiverr gig packages:
   
-  Basic: ${'{{await analyzeCompetitorGigs input={"keyword": keyword} output="basic"}}'}
-  Standard: ${'{{await analyzeCompetitorGigs input={"keyword": keyword} output="standard"}}'}
-  Premium: ${'{{await analyzeCompetitorGigs input={"keyword": keyword} output="premium"}}'}
+  Basic: {{await analyzeCompetitorGigs input=(hash keyword=keyword) output="basic"}}
+  Standard: {{await analyzeCompetitorGigs input=(hash keyword=keyword) output="standard"}}
+  Premium: {{await analyzeCompetitorGigs input=(hash keyword=keyword) output="premium"}}
   `,
 });
 
@@ -75,3 +75,4 @@ const suggestPackagePricingFlow = ai.defineFlow(
     return output!;
   }
 );
+
