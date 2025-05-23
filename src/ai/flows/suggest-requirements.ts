@@ -1,13 +1,10 @@
 
-// src/ai/flows/suggest-requirements.ts
 'use server';
 /**
- * @fileOverview This file defines a Genkit flow for suggesting client requirements for a Fiverr gig.
+ * @fileOverview This file defines a Genkit flow for suggesting client requirements for a Fiverr gig,
+ * tailored to the specific gig details.
  *
- * The flow analyzes the gig's category and description to determine what information
- * the user (Fiverr seller) needs from the client to start working on the gig.
- *
- * @function suggestRequirements - A function that orchestrates the requirement suggestion process.
+ * - suggestRequirements - A function that orchestrates the requirement suggestion process.
  */
 
 import {ai} from '@/ai/genkit';
@@ -19,21 +16,25 @@ export async function suggestRequirements(input: SuggestRequirementsInput): Prom
   return suggestRequirementsFlow(input);
 }
 
-// Define the prompt
 const suggestRequirementsPrompt = ai.definePrompt({
   name: 'suggestRequirementsPrompt',
   input: {schema: SuggestRequirementsInputSchema},
   output: {schema: SuggestRequirementsOutputSchema},
-  prompt: `You are an expert Fiverr gig creator. Given the following gig category and description, suggest a list of requirements that the user should ask from their client to start working on the gig.
+  prompt: `You are an expert Fiverr gig creator.
+  Given the following gig details:
+  - Title: {{{gigTitle}}}
+  - Category: {{{gigCategory}}}
+  - Subcategory: {{{gigSubcategory}}}
+  - Description: {{{gigDescription}}}
 
-Category: {{{gigCategory}}}
-Description: {{{gigDescription}}}
+  Suggest a list of 3-5 essential requirements that the Fiverr seller should ask from their client to start working effectively on this specific gig.
+  The requirements should be clear, concise, and directly relevant to the service described.
+  Focus on what is absolutely necessary to begin the work.
 
-Requirements:
-IMPORTANT: Ensure the generated requirements are unique and varied each time, even for the same input category and description.`,
+  Output a JSON array of strings.
+  IMPORTANT: Ensure the generated requirements are unique and varied each time, even for the same input gig details. Do not repeat previous lists of requirements.`,
 });
 
-// Define the flow
 const suggestRequirementsFlow = ai.defineFlow(
   {
     name: 'suggestRequirementsFlow',
@@ -42,6 +43,9 @@ const suggestRequirementsFlow = ai.defineFlow(
   },
   async (input: SuggestRequirementsInput) => {
     const {output} = await suggestRequirementsPrompt(input);
+    if (!output?.requirements || output.requirements.length === 0) {
+        throw new Error("AI failed to generate client requirements.");
+    }
     return output!;
   }
 );

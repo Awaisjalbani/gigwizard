@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,6 +20,7 @@ import {
   Loader2,
   Sparkles,
   TagsIcon,
+  LayersIcon, // For subcategory
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, type PricingPackage } from './actions';
+import { generateFullGig, type GigData } from './actions'; // PricingPackage type removed as GigData.pricing is now GeneratePackageDetailsOutput
+import type { GeneratePackageDetailsOutput, PackageDetailSchema as SinglePackageDetail } from '@/ai/schemas/gig-generation-schemas'; // Import schema type
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -60,33 +62,28 @@ export default function FiverrAcePage() {
     setGigData(null);
     setProgress(0);
 
-    const totalSteps = 7; // Title, Tags, PricingSuggest, Desc/FAQ, DetailedPricing, Requirements, Image
+    const totalSteps = 8; // Title, Category, Tags, PricingSuggest, DetailedPricing, Image, Desc/FAQ, Requirements
     let completedSteps = 0;
-
-    const updateProgress = () => {
-      completedSteps++;
-      setProgress(Math.min(90, Math.round((completedSteps / totalSteps) * 90)));
-    };
     
-    // Simulate initial progress rapidly, then rely on actual step completion
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
+        // Don't let simulated progress exceed 90 until actual completion
+        if (prev >= 90 && !gigData) { // Check gigData to see if final result is in
           return 90;
         }
-        // Simulate some initial progress before real steps complete
-        return prev + 5 > 90 ? 90 : prev + 5;
+        if (prev >= 100) {
+            clearInterval(progressInterval);
+            return 100;
+        }
+        // Increment progress more slowly now that image generation is involved
+        return prev + 2 > 90 && !gigData ? 90 : prev + 2; 
       });
-    }, 200);
-
+    }, 300); // Slower interval
 
     try {
-      // Pass progress callback to action if it supports it, or update progress externally based on promises
-      // For simplicity here, we'll manage progress externally based on completion of generateFullGig
       const result = await generateFullGig(data.mainKeyword);
-      clearInterval(progressInterval); // Stop simulated progress
-      setProgress(100); // Mark as complete
+      clearInterval(progressInterval); 
+      setProgress(100);
 
       if (result.error) {
         toast({
@@ -117,14 +114,17 @@ export default function FiverrAcePage() {
     }
   };
   
-  const renderPricingPackage = (pkg: PricingPackage, cardTitle: string) => ( 
-    <Card key={cardTitle} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
+  // Updated to take SinglePackageDetail type (from Zod schema)
+  const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => ( 
+    <Card key={pkg.title || tierName} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="bg-secondary rounded-t-lg">
-        <CardTitle className="text-lg font-semibold text-primary">{pkg.title}</CardTitle> 
-        <CardDescription className="text-2xl font-bold text-foreground">${pkg.price}</CardDescription>
+        {/* Using the example format: Basic – $95: Basic homepage design */}
+        <CardTitle className="text-lg font-semibold text-primary">
+            {tierName} – ${pkg.price}: <span className="text-base font-normal text-foreground">{pkg.title}</span>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow pt-4 space-y-2">
-        <p className="text-sm text-muted-foreground h-20 overflow-y-auto">{pkg.description}</p> {/* Added height and overflow for description */}
+        <p className="text-sm text-muted-foreground h-20 overflow-y-auto custom-scrollbar">{pkg.description}</p>
         <div className="text-sm">
           <p><strong>Delivery:</strong> {pkg.deliveryTime}</p>
           <p><strong>Revisions:</strong> {pkg.revisions}</p>
@@ -135,7 +135,23 @@ export default function FiverrAcePage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4 md:p-8">
+    <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background">
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: hsl(var(--secondary)); 
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: hsl(var(--primary) / 0.7); 
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: hsl(var(--primary)); 
+        }
+      `}</style>
       <header className="w-full max-w-4xl mb-8 text-center">
         <div className="inline-flex items-center justify-center p-3 bg-primary rounded-full mb-4 shadow-lg">
           <Sparkles className="h-10 w-10 text-primary-foreground" />
@@ -156,7 +172,7 @@ export default function FiverrAcePage() {
             <Input
               id="mainKeyword"
               type="text"
-              placeholder="e.g., modern logo design, blog article writing"
+              placeholder="e.g., modern logo design, shopify store setup"
               className="text-base"
               {...register('mainKeyword')}
               disabled={isLoading}
@@ -183,7 +199,7 @@ export default function FiverrAcePage() {
         {isLoading && (
           <div className="mt-8 space-y-2">
             <Progress value={progress} className="w-full" />
-            <p className="text-sm text-center text-muted-foreground">AI is crafting your gig, please wait... This might take a moment, especially for image generation.</p>
+            <p className="text-sm text-center text-muted-foreground">AI is crafting your gig. This includes research, content generation, and image creation, which might take a moment...</p>
           </div>
         )}
 
@@ -201,9 +217,15 @@ export default function FiverrAcePage() {
               <p className="text-xl font-medium p-4 bg-secondary rounded-md shadow-inner">{gigData.title}</p>
             </GigResultSection>
 
-            <GigResultSection title="Category Suggestion" icon={FolderKanban}>
-              <p className="p-4 bg-secondary rounded-md shadow-inner">{gigData.categorySuggestion}</p>
-            </GigResultSection>
+            <div className="grid md:grid-cols-2 gap-6">
+              <GigResultSection title="Category" icon={FolderKanban}>
+                <p className="p-4 bg-secondary rounded-md shadow-inner">{gigData.category}</p>
+              </GigResultSection>
+              <GigResultSection title="Subcategory" icon={LayersIcon}>
+                <p className="p-4 bg-secondary rounded-md shadow-inner">{gigData.subcategory}</p>
+              </GigResultSection>
+            </div>
+
 
             <GigResultSection title="Search Tags" icon={TagsIcon}>
               <div className="flex flex-wrap gap-2 p-4 bg-secondary rounded-md shadow-inner">
@@ -224,10 +246,11 @@ export default function FiverrAcePage() {
             </GigResultSection>
 
             <GigResultSection title="Gig Description" icon={FileText}>
+               {/* Ideally, use a Markdown renderer here if available, or sanitize HTML if Markdown includes it. For now, Textarea for simplicity */}
               <Textarea
                 value={gigData.description}
                 readOnly
-                className="min-h-[200px] text-base bg-secondary rounded-md shadow-inner p-4 focus-visible:ring-accent"
+                className="min-h-[250px] text-base bg-secondary rounded-md shadow-inner p-4 focus-visible:ring-accent custom-scrollbar"
                 aria-label="Generated Gig Description"
               />
             </GigResultSection>
@@ -262,24 +285,31 @@ export default function FiverrAcePage() {
                     src={gigData.imageDataUri}
                     alt="AI Generated Gig Image"
                     width={600} 
-                    height={400} // Maintain a common aspect ratio
+                    height={338} // Common 16:9 aspect ratio based on 1280x720 or similar
                     className="rounded-md border border-border shadow-md object-cover"
+                    data-ai-hint="professional service relevant" // Generic hint if specific keywords are hard
                   />
                 ) : (
-                  <div className="w-[600px] h-[400px] bg-muted rounded-md flex items-center justify-center border border-border shadow-md">
+                  <div 
+                    className="w-full max-w-[600px] aspect-[16/9] bg-muted rounded-md flex items-center justify-center border border-border shadow-md"
+                    data-ai-hint="placeholder service"
+                  >
                     <p className="text-muted-foreground">Image loading or not available...</p>
                   </div>
                 )}
                 <p className="text-sm text-muted-foreground mt-4 text-center">
-                  This image was generated by AI based on your gig details. 
-                  Fiverr recommends images that are 1280x769 pixels for best results.
+                  This image was AI-generated. Fiverr recommends 1280x769px (approx 16:9). Use this as inspiration.
                 </p>
               </div>
             </GigResultSection>
             
             <div className="text-center mt-12">
               <Button 
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                onClick={() => {
+                    setGigData(null); // Clear previous results
+                    // Ideally, also reset the form if useForm's reset is available and configured
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 variant="outline"
                 size="lg"
               >

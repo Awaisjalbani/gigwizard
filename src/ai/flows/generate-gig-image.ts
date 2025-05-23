@@ -1,7 +1,8 @@
 
 'use server';
 /**
- * @fileOverview Generates a unique and relevant image for a Fiverr gig.
+ * @fileOverview Generates a unique and relevant image for a Fiverr gig
+ * based on its title, keyword, and category.
  *
  * - generateGigImage - A function that generates a gig image.
  */
@@ -22,31 +23,42 @@ const generateGigImageFlow = ai.defineFlow(
     outputSchema: GenerateGigImageOutputSchema,
   },
   async (input: GenerateGigImageInput) => {
-    // Construct the prompt string with actual values from the input
-    const promptText = `You are an AI assistant creating a compelling visual for a Fiverr gig.
-Generate an image that is professional, eye-catching, and directly relevant to a service offering titled '${input.gigTitle}' which is about '${input.mainKeyword}'.
-The image should be suitable for a service marketplace thumbnail.
-Ensure the image is unique and visually distinct each time.
-Produce an image with a standard web aspect ratio, suitable for display at sizes like 600x400 pixels or 1280x769 pixels.`;
+    const promptText = `You are an AI assistant specialized in creating compelling visuals for Fiverr gigs.
+Generate a professional, eye-catching, and highly relevant gig image.
+
+Gig Details for Image Context:
+- Title: "${input.gigTitle}"
+- Main Keyword: "${input.mainKeyword}"
+- Category: "${input.category} > ${input.subcategory}"
+
+Image Requirements:
+- Style: Modern, clean, and professional. Suitable for a service marketplace thumbnail.
+- Content: Directly represent the service offered. For example, if it's "logo design," show an abstract, modern logo or a designer's workspace. If "website development," show a sleek website mockup. If "article writing," perhaps a stylized keyboard or document.
+- Aspect Ratio & Size: Produce an image with a standard web aspect ratio, suitable for display as a Fiverr gig image (e.g., 1280x769 pixels, or a similar 16:9 or 4:3 ratio like 600x400 pixels).
+- Uniqueness: Ensure the image is visually distinct and unique each time this request is made, even for similar inputs. Avoid generic stock photo appearances.
+
+Focus on creating an image that would attract clicks and convey professionalism and quality for the service described by "${input.gigTitle}".`;
 
     const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-exp', // Specific model for image generation
-      prompt: promptText, // Use the constructed prompt string
+      model: 'googleai/gemini-2.0-flash-exp',
+      prompt: promptText,
       config: {
-        responseModalities: ['TEXT', 'IMAGE'], // Must include both
+        responseModalities: ['TEXT', 'IMAGE'],
+         safetySettings: [ // Relax safety settings slightly if needed, be mindful of implications
+          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH'},
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+        ],
       },
     });
 
     if (!media?.url) {
       console.error('Image generation API call did not return a media URL. Input:', input, 'Prompt:', promptText, 'Response media:', media);
-      throw new Error('Image generation failed or returned no media URL.');
+      // Consider a fallback or a retry mechanism here if appropriate
+      throw new Error('Image generation failed or returned no media URL. The AI model might be unable to generate an image for the given prompt, or safety filters might have blocked it.');
     }
-    // Ensure the image is unique by adding a call to the model to make it unique
-    // This is a conceptual addition; actual uniqueness is handled by the model's inherent stochasticity and the prompt.
-    // Forcing absolute uniqueness on every call may require more complex strategies beyond simple prompting if the model tends to repeat.
-    // The prompt already requests uniqueness.
-
+    
     return { imageDataUri: media.url };
   }
 );
-
