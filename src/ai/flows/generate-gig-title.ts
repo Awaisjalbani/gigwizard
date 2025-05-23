@@ -24,7 +24,9 @@ const prompt = ai.definePrompt({
 
   Based on the main keyword provided, generate a compelling and effective gig title that follows Fiverr best practices for search optimization and click-through rate.
 
-  Main Keyword: {{{mainKeyword}}}`,
+  Main Keyword: {{{mainKeyword}}}
+
+  IMPORTANT: Ensure the generated gig title is unique and varied each time, even for the same input keyword.`,
 });
 
 const generateGigTitleFlow = ai.defineFlow(

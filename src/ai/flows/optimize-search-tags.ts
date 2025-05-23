@@ -32,6 +32,7 @@ const prompt = ai.definePrompt({
   Main Keyword: {{{mainKeyword}}}
 
   Provide the 5 search tags as an array of strings.
+  IMPORTANT: Ensure the generated search tags are unique and varied each time, even for the same input keyword.
   `,
 });
 

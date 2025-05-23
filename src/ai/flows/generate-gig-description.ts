@@ -26,7 +26,7 @@ const generateDescriptionPrompt = ai.definePrompt({
 
   {{{topGigData}}}
 
-  Generate a compelling gig description and a list of 2-3 relevant and concise FAQs.
+  Generate a compelling gig description and a list of 4-5 relevant and concise FAQs.
 
   The gig description should:
   - Be SEO optimized for the main keyword.
@@ -36,7 +36,7 @@ const generateDescriptionPrompt = ai.definePrompt({
   - IMPORTANT: Ensure the description content is unique and varied each time, even for the same input keyword.
 
   The FAQs should:
-  - Be a list of 2 to 3 frequently asked questions.
+  - Be a list of 4 to 5 frequently asked questions.
   - Each FAQ must have a clear 'question' and a direct, helpful 'answer'.
   - Avoid lengthy questions or answers. Keep them concise.
   - IMPORTANT: Ensure the generated questions and answers are unique and varied each time, even for the same input keyword.
@@ -54,4 +54,3 @@ const generateGigDescriptionFlow = ai.defineFlow(
     return output!;
   }
 );
-

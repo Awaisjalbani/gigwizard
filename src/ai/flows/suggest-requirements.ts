@@ -29,7 +29,8 @@ const suggestRequirementsPrompt = ai.definePrompt({
 Category: {{{gigCategory}}}
 Description: {{{gigDescription}}}
 
-Requirements:`,
+Requirements:
+IMPORTANT: Ensure the generated requirements are unique and varied each time, even for the same input category and description.`,
 });
 
 // Define the flow

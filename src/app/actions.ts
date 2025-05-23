@@ -8,13 +8,14 @@ import { suggestPackagePricing } from '@/ai/flows/suggest-package-pricing';
 import { generateGigDescription } from '@/ai/flows/generate-gig-description';
 import { suggestRequirements } from '@/ai/flows/suggest-requirements';
 import { generatePackageDetails } from '@/ai/flows/generate-package-details';
+import { generateGigImage } from '@/ai/flows/generate-gig-image'; // New import
 // Import types from the new central schema file
 import type { GeneratePackageDetailsOutput } from '@/ai/schemas/gig-generation-schemas';
 
 
 // This interface now matches the structure from generate-package-details.ts output
 export interface PricingPackage {
-  title: string; // Changed from name to title
+  title: string; 
   price: number;
   description: string;
   deliveryTime: string;
@@ -25,11 +26,11 @@ export interface GigData {
   title?: string;
   categorySuggestion?: string;
   searchTags?: string[];
-  // This will now directly use the output type from the new AI flow
-  pricing?: GeneratePackageDetailsOutput; // Uses the imported type
+  pricing?: GeneratePackageDetailsOutput; 
   description?: string;
-  faqs?: { question: string; answer: string }[]; // Matches the updated schema
+  faqs?: { question: string; answer: string }[];
   requirements?: string[];
+  imageDataUri?: string; // New field for AI generated image
   error?: string;
 }
 
@@ -50,11 +51,12 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
   }
 
   try {
-    // Initial AI calls that don't depend on each other
+    // Initial AI calls that can run in parallel
     const titlePromise = generateGigTitle({ mainKeyword });
     const tagsPromise = optimizeSearchTags({ mainKeyword });
     const pricingSuggestionPromise = suggestPackagePricing({ keyword: mainKeyword });
     
+    // Description and FAQs (FAQs are part of description output)
     const descriptionPromise = generateGigDescription({ 
       mainKeyword, 
       topGigData: `Based on analysis of top gigs for '${mainKeyword}', key features often include: comprehensive service, fast delivery, and excellent communication. Common FAQs address project scope, revisions, and delivery formats.` 
@@ -63,8 +65,8 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     const [
       titleResult,
       tagsResult,
-      pricingSuggestionResult, // This is { basic: number, standard: number, premium: number }
-      descriptionResult // This is { gigDescription: string, faqs: { question: string, answer: string }[] }
+      pricingSuggestionResult, 
+      descriptionResult 
     ] = await Promise.all([
       titlePromise,
       tagsPromise,
@@ -74,33 +76,48 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
 
     const gigTitle = titleResult.gigTitle;
     const gigDescriptionContent = descriptionResult.gigDescription;
-    
-    // FAQs are now directly structured
     const formattedFaqs = descriptionResult.faqs || [];
 
-    // Generate detailed pricing packages using the AI flow
-    const detailedPricingResult = await generatePackageDetails({
+    // Dependent AI calls
+    // Detailed pricing packages using the pricing suggestions
+    const detailedPricingPromise = generatePackageDetails({
       mainKeyword,
       basePrice: pricingSuggestionResult.basic,
       standardPrice: pricingSuggestionResult.standard,
       premiumPrice: pricingSuggestionResult.premium,
     });
     
+    // Category suggestion (can be improved with AI later)
     const categorySuggestion = await generateCategorySuggestion(mainKeyword);
     
-    const requirementsResult = await suggestRequirements({
+    // Requirements based on category and description
+    const requirementsPromise = suggestRequirements({
       gigCategory: categorySuggestion,
       gigDescription: gigDescriptionContent,
     });
 
+    // Image generation based on title and keyword
+    const imagePromise = generateGigImage({ mainKeyword, gigTitle });
+
+    const [
+        detailedPricingResult,
+        requirementsResult,
+        imageResult
+    ] = await Promise.all([
+        detailedPricingPromise,
+        requirementsPromise,
+        imagePromise
+    ]);
+    
     return {
       title: gigTitle,
       categorySuggestion: categorySuggestion,
       searchTags: tagsResult.searchTags,
-      pricing: detailedPricingResult, // Use the result from the new AI flow
+      pricing: detailedPricingResult,
       description: gigDescriptionContent,
       faqs: formattedFaqs.length > 0 ? formattedFaqs : [{question: "What is included in this service?", answer: "This service includes comprehensive support for your project needs."}],
       requirements: requirementsResult.requirements,
+      imageDataUri: imageResult.imageDataUri, // Add generated image
     };
   } catch (e: any) {
     console.error("Error generating gig data:", e);
@@ -108,4 +125,3 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     return { error: errorMessage };
   }
 }
-

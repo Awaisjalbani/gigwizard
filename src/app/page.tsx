@@ -60,21 +60,34 @@ export default function FiverrAcePage() {
     setGigData(null);
     setProgress(0);
 
-    // Simulate progress
-    const interval = setInterval(() => {
+    const totalSteps = 7; // Title, Tags, PricingSuggest, Desc/FAQ, DetailedPricing, Requirements, Image
+    let completedSteps = 0;
+
+    const updateProgress = () => {
+      completedSteps++;
+      setProgress(Math.min(90, Math.round((completedSteps / totalSteps) * 90)));
+    };
+    
+    // Simulate initial progress rapidly, then rely on actual step completion
+    const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 90) {
-          clearInterval(interval);
+          clearInterval(progressInterval);
           return 90;
         }
-        return prev + 10;
+        // Simulate some initial progress before real steps complete
+        return prev + 5 > 90 ? 90 : prev + 5;
       });
-    }, 300);
+    }, 200);
+
 
     try {
+      // Pass progress callback to action if it supports it, or update progress externally based on promises
+      // For simplicity here, we'll manage progress externally based on completion of generateFullGig
       const result = await generateFullGig(data.mainKeyword);
-      clearInterval(interval);
-      setProgress(100);
+      clearInterval(progressInterval); // Stop simulated progress
+      setProgress(100); // Mark as complete
+
       if (result.error) {
         toast({
           variant: 'destructive',
@@ -90,8 +103,8 @@ export default function FiverrAcePage() {
         });
       }
     } catch (error: any) {
-      clearInterval(interval);
-      setProgress(100); // Or set to error state
+      clearInterval(progressInterval);
+      setProgress(100); 
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
       toast({
         variant: 'destructive',
@@ -104,14 +117,14 @@ export default function FiverrAcePage() {
     }
   };
   
-  const renderPricingPackage = (pkg: PricingPackage, cardTitle: string) => ( // Changed parameter name for clarity
+  const renderPricingPackage = (pkg: PricingPackage, cardTitle: string) => ( 
     <Card key={cardTitle} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="bg-secondary rounded-t-lg">
         <CardTitle className="text-lg font-semibold text-primary">{pkg.title}</CardTitle> 
         <CardDescription className="text-2xl font-bold text-foreground">${pkg.price}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow pt-4 space-y-2">
-        <p className="text-sm text-muted-foreground">{pkg.description}</p>
+        <p className="text-sm text-muted-foreground h-20 overflow-y-auto">{pkg.description}</p> {/* Added height and overflow for description */}
         <div className="text-sm">
           <p><strong>Delivery:</strong> {pkg.deliveryTime}</p>
           <p><strong>Revisions:</strong> {pkg.revisions}</p>
@@ -170,7 +183,7 @@ export default function FiverrAcePage() {
         {isLoading && (
           <div className="mt-8 space-y-2">
             <Progress value={progress} className="w-full" />
-            <p className="text-sm text-center text-muted-foreground">AI is crafting your gig, please wait...</p>
+            <p className="text-sm text-center text-muted-foreground">AI is crafting your gig, please wait... This might take a moment, especially for image generation.</p>
           </div>
         )}
 
@@ -242,19 +255,24 @@ export default function FiverrAcePage() {
               </ul>
             </GigResultSection>
 
-            <GigResultSection title="Gig Image Suggestion" icon={ImageIcon}>
+            <GigResultSection title="AI Generated Gig Image" icon={ImageIcon}>
                 <div className="p-4 bg-secondary rounded-md shadow-inner flex flex-col items-center">
-                <Image
-                  src="https://placehold.co/600x400.png"
-                  alt="Placeholder Gig Image"
-                  width={600}
-                  height={400}
-                  className="rounded-md border border-border shadow-md object-cover"
-                  data-ai-hint="technology service"
-                />
+                {gigData.imageDataUri ? (
+                  <Image
+                    src={gigData.imageDataUri}
+                    alt="AI Generated Gig Image"
+                    width={600} 
+                    height={400} // Maintain a common aspect ratio
+                    className="rounded-md border border-border shadow-md object-cover"
+                  />
+                ) : (
+                  <div className="w-[600px] h-[400px] bg-muted rounded-md flex items-center justify-center border border-border shadow-md">
+                    <p className="text-muted-foreground">Image loading or not available...</p>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground mt-4 text-center">
-                  This is a placeholder image. AI would generate a custom image based on your gig details.
-                  Fiverr recommends images that are 1280x769 pixels.
+                  This image was generated by AI based on your gig details. 
+                  Fiverr recommends images that are 1280x769 pixels for best results.
                 </p>
               </div>
             </GigResultSection>
@@ -281,4 +299,3 @@ export default function FiverrAcePage() {
     </div>
   );
 }
-

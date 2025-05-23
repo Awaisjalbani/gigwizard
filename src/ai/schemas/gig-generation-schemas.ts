@@ -16,8 +16,8 @@ export const GenerateGigDescriptionInputSchema = z.object({
 });
 export type GenerateGigDescriptionInput = z.infer<typeof GenerateGigDescriptionInputSchema>;
 export const GenerateGigDescriptionOutputSchema = z.object({
-  gigDescription: z.string().describe('The generated gig description in Markdown format.'),
-  faqs: z.array(FAQSchema).max(3).describe('A list of 2-3 relevant and concise FAQs with their answers for the gig. Ensure these are unique each time.'),
+  gigDescription: z.string().describe('The generated gig description in Markdown format. Ensure this is unique each time.'),
+  faqs: z.array(FAQSchema).min(4).max(5).describe('A list of 4 to 5 relevant and concise FAQs with their answers for the gig. Ensure these are unique each time.'),
 });
 export type GenerateGigDescriptionOutput = z.infer<typeof GenerateGigDescriptionOutputSchema>;
 
@@ -27,7 +27,7 @@ export const GenerateGigTitleInputSchema = z.object({
 });
 export type GenerateGigTitleInput = z.infer<typeof GenerateGigTitleInputSchema>;
 export const GenerateGigTitleOutputSchema = z.object({
-  gigTitle: z.string().describe('The generated gig title optimized for Fiverr.'),
+  gigTitle: z.string().describe('The generated gig title optimized for Fiverr. Ensure this is unique each time.'),
 });
 export type GenerateGigTitleOutput = z.infer<typeof GenerateGigTitleOutputSchema>;
 
@@ -35,7 +35,7 @@ export type GenerateGigTitleOutput = z.infer<typeof GenerateGigTitleOutputSchema
 export const PackageDetailSchema = z.object({
   title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
-  description: z.string().describe('A detailed, benefit-oriented description of what is included in this package. Highlight key deliverables and unique selling points. This should be based on deep research for the keyword and be unique each time.'),
+  description: z.string().max(180, "Description should be concise, ideally around 30 words or less, up to 180 characters max.").describe('A detailed, benefit-oriented, and concise description (around 30 words) of what is included in this package. Highlight key deliverables and unique selling points. This should be based on deep research for the keyword and be unique each time.'),
   deliveryTime: z.string().describe('Estimated delivery time for this package (e.g., "3 Days", "1 Week").'),
   revisions: z.string().describe('Number of revisions included (e.g., "1 Revision", "3 Revisions", "Unlimited Revisions").')
 });
@@ -65,7 +65,7 @@ export const OptimizeSearchTagsOutputSchema = z.object({
     .array(z.string())
     .length(5)
     .describe(
-      'An array of 5 optimized search tags that are less competitive, highly relevant, and have good search volume.'
+      'An array of 5 optimized search tags that are less competitive, highly relevant, and have good search volume. Ensure these are unique each time.'
     ),
 });
 export type OptimizeSearchTagsOutput = z.infer<typeof OptimizeSearchTagsOutputSchema>;
@@ -100,7 +100,18 @@ export type SuggestRequirementsInput = z.infer<typeof SuggestRequirementsInputSc
 export const SuggestRequirementsOutputSchema = z.object({
   requirements: z
     .array(z.string())
-    .describe('A list of suggested requirements from the client.'),
+    .describe('A list of suggested requirements from the client. Ensure these are unique and varied each time.'),
 });
 export type SuggestRequirementsOutput = z.infer<typeof SuggestRequirementsOutputSchema>;
 
+
+// From generate-gig-image.ts
+export const GenerateGigImageInputSchema = z.object({
+  mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
+  gigTitle: z.string().describe('The title of the Fiverr gig.'),
+});
+export type GenerateGigImageInput = z.infer<typeof GenerateGigImageInputSchema>;
+export const GenerateGigImageOutputSchema = z.object({
+  imageDataUri: z.string().describe("A data URI of the generated image (e.g., 'data:image/png;base64,...'). This image should be unique."),
+});
+export type GenerateGigImageOutput = z.infer<typeof GenerateGigImageOutputSchema>;
