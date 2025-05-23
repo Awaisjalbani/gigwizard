@@ -21,20 +21,24 @@ const generateGigImageFlow = ai.defineFlow(
     inputSchema: GenerateGigImageInputSchema,
     outputSchema: GenerateGigImageOutputSchema,
   },
-  async (input) => {
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-exp', // Specific model for image generation
-      prompt: `You are an AI assistant creating a compelling visual for a Fiverr gig.
-Generate an image that is professional, eye-catching, and directly relevant to a service offering titled '{{{gigTitle}}}' which is about '{{{mainKeyword}}}'.
+  async (input: GenerateGigImageInput) => {
+    // Construct the prompt string with actual values from the input
+    const promptText = `You are an AI assistant creating a compelling visual for a Fiverr gig.
+Generate an image that is professional, eye-catching, and directly relevant to a service offering titled '${input.gigTitle}' which is about '${input.mainKeyword}'.
 The image should be suitable for a service marketplace thumbnail.
 Ensure the image is unique and visually distinct each time.
-Produce an image with a standard web aspect ratio, suitable for display at sizes like 600x400 pixels or 1280x769 pixels.`,
+Produce an image with a standard web aspect ratio, suitable for display at sizes like 600x400 pixels or 1280x769 pixels.`;
+
+    const {media} = await ai.generate({
+      model: 'googleai/gemini-2.0-flash-exp', // Specific model for image generation
+      prompt: promptText, // Use the constructed prompt string
       config: {
         responseModalities: ['TEXT', 'IMAGE'], // Must include both
       },
     });
 
     if (!media?.url) {
+      console.error('Image generation API call did not return a media URL. Input:', input, 'Prompt:', promptText, 'Response media:', media);
       throw new Error('Image generation failed or returned no media URL.');
     }
     // Ensure the image is unique by adding a call to the model to make it unique
@@ -45,3 +49,4 @@ Produce an image with a standard web aspect ratio, suitable for display at sizes
     return { imageDataUri: media.url };
   }
 );
+
