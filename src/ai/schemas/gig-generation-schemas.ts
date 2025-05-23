@@ -19,6 +19,13 @@ export type SuggestGigCategoryOutput = z.infer<typeof SuggestGigCategoryOutputSc
 
 
 // --- Search Tag Optimization Schemas ---
+export const SearchTagAnalyticsSchema = z.object({
+  term: z.string().describe('A related keyword term.'),
+  volume: z.enum(['High', 'Medium', 'Low']).optional().describe('Simulated search volume (High, Medium, Low).'),
+  competition: z.enum(['High', 'Medium', 'Low']).optional().describe('Simulated competition level (High, Medium, Low).'),
+});
+export type SearchTagAnalytics = z.infer<typeof SearchTagAnalyticsSchema>;
+
 export const OptimizeSearchTagsInputSchema = z.object({
   mainKeyword: z
     .string()
@@ -31,10 +38,10 @@ export type OptimizeSearchTagsInput = z.infer<typeof OptimizeSearchTagsInputSche
 
 export const OptimizeSearchTagsOutputSchema = z.object({
   searchTags: z
-    .array(z.string())
-    .length(5)
+    .array(SearchTagAnalyticsSchema)
+    .min(1) // Expect at least one tag, ideally 5
     .describe(
-      'An array of 5 optimized search tags that are less competitive, highly relevant, and have good search volume, based on simulated deep keyword analysis. Ensure these are unique each time.'
+      'An array of 5 optimized search tags with their (simulated) analytics. Ensure these are unique each time.'
     ),
 });
 export type OptimizeSearchTagsOutput = z.infer<typeof OptimizeSearchTagsOutputSchema>;
@@ -66,13 +73,15 @@ export type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
 
 
 // --- Package Detail Generation Schemas ---
-export const PackageDetailSchema = z.object({
+export const SinglePackageDetailSchema = z.object({ // Renamed for clarity if used elsewhere
   title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
   description: z.string().max(180, "Description must not exceed 180 characters.").describe('A detailed, benefit-oriented, and concise description (around 30 words, STRICTLY under 180 characters) of what is included in this package. Highlight key deliverables and unique selling points. This should be based on (simulated) deep research for the keyword and be unique each time.'),
   deliveryTime: z.string().describe('Estimated delivery time for this package (e.g., "3 Days", "1 Week").'),
   revisions: z.string().describe('Number of revisions included (e.g., "1 Revision", "3 Revisions", "Unlimited Revisions").')
 });
+export type SinglePackageDetail = z.infer<typeof SinglePackageDetailSchema>;
+
 
 export const GeneratePackageDetailsInputSchema = z.object({
   mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
@@ -86,9 +95,9 @@ export const GeneratePackageDetailsInputSchema = z.object({
 export type GeneratePackageDetailsInput = z.infer<typeof GeneratePackageDetailsInputSchema>;
 
 export const GeneratePackageDetailsOutputSchema = z.object({
-  basic: PackageDetailSchema.extend({price: z.number().describe('Final calculated price for the basic package.')}),
-  standard: PackageDetailSchema.extend({price: z.number().describe('Final calculated price for the standard package.')}),
-  premium: PackageDetailSchema.extend({price: z.number().describe('Final calculated price for the premium package.')})
+  basic: SinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the basic package.')}),
+  standard: SinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the standard package.')}),
+  premium: SinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the premium package.')})
 });
 export type GeneratePackageDetailsOutput = z.infer<typeof GeneratePackageDetailsOutputSchema>;
 
@@ -98,6 +107,8 @@ export const FAQSchema = z.object({
   question: z.string().describe('A frequently asked question, concise and relevant. Must be unique each time.'),
   answer: z.string().describe('A concise and helpful answer to the question. Must be unique each time.'),
 });
+export type FAQ = z.infer<typeof FAQSchema>;
+
 
 export const GenerateGigDescriptionInputSchema = z.object({
   mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
@@ -110,24 +121,10 @@ export const GenerateGigDescriptionInputSchema = z.object({
 export type GenerateGigDescriptionInput = z.infer<typeof GenerateGigDescriptionInputSchema>;
 
 export const GenerateGigDescriptionOutputSchema = z.object({
-  // This description might be generated but potentially overridden by the new central flow.
-  // The primary use of this flow might become FAQ generation.
   gigDescription: z.string().describe('The generated gig description in Markdown format. Ensure this is unique each time.'),
   faqs: z.array(FAQSchema).min(4).max(5).describe('A list of 4 to 5 relevant and concise FAQs with their answers for the gig. Ensure these are unique each time.'),
 });
 export type GenerateGigDescriptionOutput = z.infer<typeof GenerateGigDescriptionOutputSchema>;
-
-
-// --- Gig Title Generation Schemas (Superseded by GenerateTitleDescImgPromptFlow) ---
-// export const GenerateGigTitleInputSchema = z.object({
-//   mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
-// });
-// export type GenerateGigTitleInput = z.infer<typeof GenerateGigTitleInputSchema>;
-
-// export const GenerateGigTitleOutputSchema = z.object({
-//   gigTitle: z.string().describe('The generated gig title optimized for Fiverr, incorporating power words and adhering to best practices. Ensure this is unique each time.'),
-// });
-// export type GenerateGigTitleOutput = z.infer<typeof GenerateGigTitleOutputSchema>;
 
 
 // --- Client Requirement Suggestion Schemas ---
@@ -149,12 +146,12 @@ export type SuggestRequirementsOutput = z.infer<typeof SuggestRequirementsOutput
 
 // --- Gig Image Generation Schemas (Updated to take an image prompt) ---
 export const GenerateGigImageFromPromptInputSchema = z.object({
-  imagePrompt: z.string().describe('A detailed prompt for an AI image generator (e.g., DALL-E style).'),
+  imagePrompt: z.string().describe('A detailed prompt for an AI image generator (e.g., DALL-E style). This prompt is expected to be generated by another flow.'),
 });
 export type GenerateGigImageFromPromptInput = z.infer<typeof GenerateGigImageFromPromptInputSchema>;
 
 export const GenerateGigImageOutputSchema = z.object({
-  imageDataUri: z.string().describe("A data URI of the generated image (e.g., 'data:image/png;base64,...'). This image should be unique and relevant to the gig title and category."),
+  imageDataUri: z.string().describe("A data URI of the generated image (e.g., 'data:image/png;base64,...'). This image should be unique and relevant to the image prompt."),
 });
 export type GenerateGigImageOutput = z.infer<typeof GenerateGigImageOutputSchema>;
 
