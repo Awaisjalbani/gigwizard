@@ -15,7 +15,9 @@ import type {
     FAQ,
     SearchTagAnalytics,
     SinglePackageDetail,
-    OptimizeSearchTagsInput
+    OptimizeSearchTagsInput,
+    GenerateGigImageFromPromptInput,
+    GenerateGigImageOutput
 } from '@/ai/schemas/gig-generation-schemas';
 
 
@@ -187,3 +189,32 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
     return { error: errorMessage };
   }
 }
+
+
+export async function regenerateGigImageAction(
+  input: GenerateGigImageFromPromptInput
+): Promise<GenerateGigImageOutput | { error: string }> {
+  if (!input.imagePrompt) {
+    return { error: 'Image prompt is required to regenerate an image.' };
+  }
+  try {
+    const result = await generateGigImage(input);
+    if (!result.imageDataUri) {
+      return { error: "AI failed to return an image data URI." };
+    }
+    return result;
+  } catch (e: any) {
+    console.error("Error regenerating gig image:", e);
+    let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate image due to an unknown error.';
+    if (e.message) {
+        const lowerMessage = e.message.toLowerCase();
+        if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters")) {
+            errorMessage = "Image regeneration failed. The AI might be unable to create an image for this specific prompt, or safety filters might have blocked it. Please try a different approach or check model capabilities.";
+        } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
+            errorMessage = "The AI service is currently overloaded or unavailable for image generation. Please try again in a few moments. (Details: " + e.message + ")";
+        }
+    }
+    return { error: errorMessage };
+  }
+}
+

@@ -46,7 +46,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, refreshSearchTagsAction } from '../actions'; // Adjusted path
+import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction } from '../actions'; // Adjusted path
 import type { SinglePackageDetail, SearchTagAnalytics } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
@@ -67,6 +67,7 @@ export default function CreateGigPage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [currentMainKeyword, setCurrentMainKeyword] = useState<string | null>(null);
   const [isRefreshingTags, setIsRefreshingTags] = useState(false);
+  const [isRecreatingImage, setIsRecreatingImage] = useState(false);
 
 
   useEffect(() => {
@@ -214,6 +215,44 @@ export default function CreateGigPage() {
     }
   };
 
+  const handleRecreateImage = async () => {
+    if (!gigData || !gigData.imagePrompt) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Recreate Image',
+        description: 'Image prompt is missing. Please generate a gig first.',
+      });
+      return;
+    }
+
+    setIsRecreatingImage(true);
+    try {
+      const result = await regenerateGigImageAction({ imagePrompt: gigData.imagePrompt });
+      if (result.imageDataUri) {
+        setGigData(prevData => ({ ...prevData, imageDataUri: result.imageDataUri, error: undefined }));
+        toast({
+          title: 'Image Recreated!',
+          description: 'A new gig image has been generated.',
+        });
+      } else if (result.error) {
+         toast({
+          variant: 'destructive',
+          title: 'Error Recreating Image',
+          description: result.error,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Recreate Image',
+        description: error.message || 'An unexpected error occurred while recreating the image.',
+      });
+    } finally {
+      setIsRecreatingImage(false);
+    }
+  };
+
+
   const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => (
     <Card key={pkg.title || tierName} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300 bg-card">
       <CardHeader className="bg-secondary rounded-t-lg p-4">
@@ -247,7 +286,7 @@ export default function CreateGigPage() {
   };
 
   const handleSignOut = async () => {
-    setIsLoading(true);
+    setIsLoading(true); // Reuse general isLoading or add specific one for signout
     try {
       await signOut();
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
@@ -409,7 +448,7 @@ export default function CreateGigPage() {
                   <p className="text-sm font-medium text-foreground">{currentUser.displayName || 'User'}</p>
                   <p className="text-xs text-muted-foreground">{currentUser.email}</p>
                 </div>
-                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading || isRefreshingTags}>
+                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading || isRefreshingTags || isRecreatingImage}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                 </Button>
@@ -431,13 +470,13 @@ export default function CreateGigPage() {
               placeholder="e.g., modern logo design, shopify store setup, react developer"
               className="text-base py-3 px-4 focus:border-primary focus:ring-primary"
               {...register('mainKeyword')}
-              disabled={isLoading || isRefreshingTags}
+              disabled={isLoading || isRefreshingTags || isRecreatingImage}
             />
             {errors.mainKeyword && (
               <p className="text-sm text-destructive mt-1.5">{errors.mainKeyword.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={isLoading || isRefreshingTags}>
+          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={isLoading || isRefreshingTags || isRecreatingImage}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
@@ -512,7 +551,7 @@ export default function CreateGigPage() {
                 <Button
                   onClick={handleRefreshTags}
                   variant="outline"
-                  disabled={isRefreshingTags || !currentMainKeyword || !gigData.title}
+                  disabled={isRefreshingTags || !currentMainKeyword || !gigData.title || isRecreatingImage}
                 >
                   {isRefreshingTags ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -583,10 +622,20 @@ export default function CreateGigPage() {
                   </div>
                 )}
                 {gigData.imageDataUri && (
-                  <Button onClick={handleDownloadImage} variant="outline" className="shadow-md">
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Image
-                  </Button>
+                  <div className="flex space-x-3 mt-2">
+                    <Button onClick={handleDownloadImage} variant="outline" className="shadow-md" disabled={isRecreatingImage}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Image
+                    </Button>
+                    <Button onClick={handleRecreateImage} variant="outline" className="shadow-md" disabled={isRecreatingImage || isLoading || isRefreshingTags}>
+                        {isRecreatingImage ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                        )}
+                      Recreate Image
+                    </Button>
+                  </div>
                 )}
                 <p className="text-sm text-muted-foreground text-center max-w-md">
                   This image was AI-generated. Fiverr recommends 1280x769px. Use this as inspiration or for quick mockups.
@@ -594,6 +643,7 @@ export default function CreateGigPage() {
               </div>
             </GigResultSection>
 
+            {/*
             {gigData.imagePrompt && (
               <GigResultSection title="Generated Image Prompt (for AI)" icon={MessageSquareText}>
                 <Textarea
@@ -604,6 +654,7 @@ export default function CreateGigPage() {
                 />
               </GigResultSection>
             )}
+            */}
 
             <div className="text-center mt-16">
               <Button
@@ -617,6 +668,7 @@ export default function CreateGigPage() {
                 variant="outline"
                 size="lg"
                 className="py-3 px-8 rounded-lg shadow-md hover:shadow-lg"
+                disabled={isRecreatingImage || isLoading || isRefreshingTags}
               >
                 <ArrowRight className="mr-2.5 h-5 w-5 transform rotate-[270deg]" />
                 Create Another Gig
@@ -634,3 +686,4 @@ export default function CreateGigPage() {
     </div>
   );
 }
+
