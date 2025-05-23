@@ -22,7 +22,7 @@ const generateDetailsPrompt = ai.definePrompt({
   prompt: `You are an expert Fiverr gig strategist specializing in creating highly converting service packages.
 Your task is to generate three distinct packages (Basic, Standard, Premium) for a gig related to the main keyword: {{{mainKeyword}}}.
 
-IMPORTANT: Each time you generate these packages, ensure the titles, descriptions (around 30 words each), and specific features offered are unique and varied, even if the main keyword is the same as a previous request. Avoid repetition.
+IMPORTANT: Each time you generate these packages, ensure the titles, descriptions, and specific features offered are unique and varied, even if the main keyword is the same as a previous request. Avoid repetition.
 
 You have been provided with AI-suggested reference prices:
 - Basic Reference Price: {{{basePrice}}}
@@ -34,7 +34,7 @@ Use these reference prices as a guideline, but feel free to adjust them slightly
 For each package (Basic, Standard, Premium), provide:
 1.  A compelling 'title' (e.g., "Starter Kit", "Growth Engine", "Ultimate Boost").
 2.  The final 'price' you determined.
-3.  A detailed 'description' of services included. This description MUST be concise, around 30 words, and based on deep research for the '{{{mainKeyword}}}' niche. Highlight unique selling points and what makes the service stand out. Focus on benefits for the buyer.
+3.  A detailed 'description' of services included. This description MUST be concise, ideally around 30 words, and **STRICTLY MUST NOT exceed 180 characters**. It should be based on deep research for the '{{{mainKeyword}}}' niche. Highlight unique selling points and what makes the service stand out. Focus on benefits for the buyer.
 4.  A realistic 'deliveryTime' (e.g., "3 Days").
 5.  The number of 'revisions' offered.
 
@@ -54,3 +54,4 @@ const generatePackageDetailsFlow = ai.defineFlow(
     return output!;
   }
 );
+
