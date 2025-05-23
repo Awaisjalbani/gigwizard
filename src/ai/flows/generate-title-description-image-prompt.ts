@@ -69,6 +69,7 @@ Generate the following three components:
     - Base it on the main keyword "{{mainKeyword}}" and the style/tone of the generated Gig Description.
     - Follow Fiverr’s image best practices: clear text (if any), professional 2D design preferred over photos, relevant to business context, high contrast.
     - Make the prompt detailed and specific.
+    - **Crucially, ensure this image prompt itself is distinct and substantially varied each time it is generated**, even for the same main keyword, by incorporating unique details from the generated title and description.
     - Example Image Prompt: "Fiverr gig thumbnail for Shopify store design — clean layout, modern eCommerce icons, laptop screen mockup with Shopify dashboard, bold text that says ‘Premium Shopify Store’, green and white color scheme, 2D flat design, high contrast, simple and professional"
 
 Output a JSON object with keys "gigTitle", "gigDescription", and "imagePrompt".
@@ -96,3 +97,4 @@ const generateTitleDescriptionImagePromptFlow = ai.defineFlow(
 if (typeof global !== 'undefined' && (global as any).tonos === undefined) {
   (global as any).tonos = tonos;
 }
+
