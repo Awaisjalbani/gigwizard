@@ -6,32 +6,20 @@
  * @fileOverview A flow to suggest pricing for three service packages on Fiverr based on competitor analysis.
  *
  * - suggestPackagePricing - A function that suggests pricing for Fiverr gig packages.
- * - SuggestPackagePricingInput - The input type for the suggestPackagePricing function.
- * - SuggestPackagePricingOutput - The return type for the suggestPackagePricing function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-
-const SuggestPackagePricingInputSchema = z.object({
-  keyword: z.string().describe('The main keyword for the Fiverr gig.'),
-});
-export type SuggestPackagePricingInput = z.infer<typeof SuggestPackagePricingInputSchema>;
-
-const SuggestPackagePricingOutputSchema = z.object({
-  basic: z.number().describe('Suggested price for the basic package.'),
-  standard: z.number().describe('Suggested price for the standard package.'),
-  premium: z.number().describe('Suggested price for the premium package.'),
-});
-export type SuggestPackagePricingOutput = z.infer<typeof SuggestPackagePricingOutputSchema>;
-
-// New schema for the prompt's input, including fetched prices
-const PricingPromptInputSchema = SuggestPackagePricingInputSchema.extend({
-  basicPrice: z.number().describe('The fetched basic price from competitor analysis.'),
-  standardPrice: z.number().describe('The fetched standard price from competitor analysis.'),
-  premiumPrice: z.number().describe('The fetched premium price from competitor analysis.'),
-});
-type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
+import {z} from 'genkit'; // z is used for the tool's inline schema definition
+import type { 
+  SuggestPackagePricingInput, 
+  SuggestPackagePricingOutput, 
+  PricingPromptInput 
+} from '@/ai/schemas/gig-generation-schemas';
+import { 
+  SuggestPackagePricingInputSchema, 
+  SuggestPackagePricingOutputSchema, 
+  PricingPromptInputSchema 
+} from '@/ai/schemas/gig-generation-schemas';
 
 
 export async function suggestPackagePricing(input: SuggestPackagePricingInput): Promise<SuggestPackagePricingOutput> {
@@ -41,7 +29,7 @@ export async function suggestPackagePricing(input: SuggestPackagePricingInput): 
 const analyzeCompetitorGigs = ai.defineTool({
   name: 'analyzeCompetitorGigs',
   description: 'Analyzes competitor gigs on Fiverr to determine appropriate pricing for different service packages.',
-  inputSchema: z.object({ // Tool's input schema remains the same
+  inputSchema: z.object({ 
     keyword: z.string().describe('The main keyword for the Fiverr gig.'),
   }),
   outputSchema: z.object({
@@ -50,7 +38,7 @@ const analyzeCompetitorGigs = ai.defineTool({
     premium: z.number().describe('The average price of the premium package from competitor gigs.'),
   }),
 },
-async (input) => {
+async (input: { keyword: string; }) => { // Type added for tool input
   // Placeholder implementation: return some dummy prices.
   // In a real implementation, this tool would analyze real Fiverr gigs and return more meaningful data.
   return {
@@ -62,9 +50,8 @@ async (input) => {
 
 const pricingPrompt = ai.definePrompt({
   name: 'pricingPrompt',
-  input: {schema: PricingPromptInputSchema}, // Use the new extended input schema
+  input: {schema: PricingPromptInputSchema}, 
   output: {schema: SuggestPackagePricingOutputSchema},
-  // tools: [], // Tool is no longer called by the LLM directly from this prompt's context
   prompt: `You are an AI pricing assistant for Fiverr gigs.
 You have been provided with pricing information derived from competitor analysis for the keyword "{{{keyword}}}":
 - Basic package price: {{{basicPrice}}}
@@ -109,4 +96,3 @@ const suggestPackagePricingFlow = ai.defineFlow(
     return output;
   }
 );
-

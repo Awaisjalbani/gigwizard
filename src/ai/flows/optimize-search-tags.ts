@@ -1,32 +1,16 @@
+
 'use server';
 
 /**
  * @fileOverview Optimizes search tags for a Fiverr gig based on a main keyword.
  *
  * - optimizeSearchTags - A function that optimizes search tags for a Fiverr gig.
- * - OptimizeSearchTagsInput - The input type for the optimizeSearchTags function.
- * - OptimizeSearchTagsOutput - The return type for the optimizeSearchTags function.
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import type { OptimizeSearchTagsInput, OptimizeSearchTagsOutput } from '@/ai/schemas/gig-generation-schemas';
+import { OptimizeSearchTagsInputSchema, OptimizeSearchTagsOutputSchema } from '@/ai/schemas/gig-generation-schemas';
 
-const OptimizeSearchTagsInputSchema = z.object({
-  mainKeyword: z
-    .string()
-    .describe('The main keyword for which to optimize search tags.'),
-});
-export type OptimizeSearchTagsInput = z.infer<typeof OptimizeSearchTagsInputSchema>;
-
-const OptimizeSearchTagsOutputSchema = z.object({
-  searchTags: z
-    .array(z.string())
-    .length(5)
-    .describe(
-      'An array of 5 optimized search tags that are less competitive, highly relevant, and have good search volume.'
-    ),
-});
-export type OptimizeSearchTagsOutput = z.infer<typeof OptimizeSearchTagsOutputSchema>;
 
 export async function optimizeSearchTags(
   input: OptimizeSearchTagsInput
@@ -57,7 +41,7 @@ const optimizeSearchTagsFlow = ai.defineFlow(
     inputSchema: OptimizeSearchTagsInputSchema,
     outputSchema: OptimizeSearchTagsOutputSchema,
   },
-  async input => {
+  async (input: OptimizeSearchTagsInput) => {
     const {output} = await prompt(input);
     return output!;
   }
