@@ -33,11 +33,13 @@ const generateDescriptionPrompt = ai.definePrompt({
   - Clearly highlight what the user will get (key features and benefits).
   - Explain why the buyer should choose this service (unique selling points).
   - Be formatted in Markdown.
+  - IMPORTANT: Ensure the description content is unique and varied each time, even for the same input keyword.
 
   The FAQs should:
   - Be a list of 2 to 3 frequently asked questions.
   - Each FAQ must have a clear 'question' and a direct, helpful 'answer'.
   - Avoid lengthy questions or answers. Keep them concise.
+  - IMPORTANT: Ensure the generated questions and answers are unique and varied each time, even for the same input keyword.
   `,
 });
 
@@ -52,3 +54,4 @@ const generateGigDescriptionFlow = ai.defineFlow(
     return output!;
   }
 );
+

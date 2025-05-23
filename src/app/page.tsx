@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, type FormEvent } from 'react';
@@ -103,10 +104,10 @@ export default function FiverrAcePage() {
     }
   };
   
-  const renderPricingPackage = (pkg: PricingPackage, title: string) => (
-    <Card key={title} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
+  const renderPricingPackage = (pkg: PricingPackage, cardTitle: string) => ( // Changed parameter name for clarity
+    <Card key={cardTitle} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300">
       <CardHeader className="bg-secondary rounded-t-lg">
-        <CardTitle className="text-lg font-semibold text-primary">{pkg.name}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-primary">{pkg.title}</CardTitle> 
         <CardDescription className="text-2xl font-bold text-foreground">${pkg.price}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow pt-4 space-y-2">
@@ -280,3 +281,4 @@ export default function FiverrAcePage() {
     </div>
   );
 }
+

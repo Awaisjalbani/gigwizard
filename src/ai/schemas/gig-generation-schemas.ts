@@ -17,7 +17,7 @@ export const GenerateGigDescriptionInputSchema = z.object({
 export type GenerateGigDescriptionInput = z.infer<typeof GenerateGigDescriptionInputSchema>;
 export const GenerateGigDescriptionOutputSchema = z.object({
   gigDescription: z.string().describe('The generated gig description in Markdown format.'),
-  faqs: z.array(FAQSchema).max(3).describe('A list of 2-3 relevant and concise FAQs with their answers for the gig.'),
+  faqs: z.array(FAQSchema).max(3).describe('A list of 2-3 relevant and concise FAQs with their answers for the gig. Ensure these are unique each time.'),
 });
 export type GenerateGigDescriptionOutput = z.infer<typeof GenerateGigDescriptionOutputSchema>;
 
@@ -33,9 +33,9 @@ export type GenerateGigTitleOutput = z.infer<typeof GenerateGigTitleOutputSchema
 
 // From generate-package-details.ts
 export const PackageDetailSchema = z.object({
-  name: z.string().describe('The compelling name of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro").'),
+  title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
-  description: z.string().describe('A detailed, benefit-oriented description of what is included in this package. Highlight key deliverables and unique selling points. This should be based on deep research for the keyword.'),
+  description: z.string().describe('A detailed, benefit-oriented description of what is included in this package. Highlight key deliverables and unique selling points. This should be based on deep research for the keyword and be unique each time.'),
   deliveryTime: z.string().describe('Estimated delivery time for this package (e.g., "3 Days", "1 Week").'),
   revisions: z.string().describe('Number of revisions included (e.g., "1 Revision", "3 Revisions", "Unlimited Revisions").')
 });
@@ -82,12 +82,14 @@ export const SuggestPackagePricingOutputSchema = z.object({
 });
 export type SuggestPackagePricingOutput = z.infer<typeof SuggestPackagePricingOutputSchema>;
 
-export const PricingPromptInputSchema = SuggestPackagePricingInputSchema.extend({
+export const PricingPromptInputSchema = z.object({
+  keyword: z.string().describe('The main keyword for the Fiverr gig.'),
   basicPrice: z.number().describe('The fetched basic price from competitor analysis.'),
   standardPrice: z.number().describe('The fetched standard price from competitor analysis.'),
   premiumPrice: z.number().describe('The fetched premium price from competitor analysis.'),
 });
 export type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
+
 
 // From suggest-requirements.ts
 export const SuggestRequirementsInputSchema = z.object({
@@ -101,3 +103,4 @@ export const SuggestRequirementsOutputSchema = z.object({
     .describe('A list of suggested requirements from the client.'),
 });
 export type SuggestRequirementsOutput = z.infer<typeof SuggestRequirementsOutputSchema>;
+

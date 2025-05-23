@@ -14,7 +14,7 @@ import type { GeneratePackageDetailsOutput } from '@/ai/schemas/gig-generation-s
 
 // This interface now matches the structure from generate-package-details.ts output
 export interface PricingPackage {
-  name: string;
+  title: string; // Changed from name to title
   price: number;
   description: string;
   deliveryTime: string;
@@ -39,6 +39,7 @@ const generateCategorySuggestion = async (keyword: string): Promise<string> => {
   if (keyword.toLowerCase().match(/website|web design|develop/)) return `Programming & Tech > Website Development`;
   if (keyword.toLowerCase().match(/article|blog|write/)) return `Writing & Translation > Articles & Blog Posts`;
   if (keyword.toLowerCase().match(/video edit|animation/)) return `Video & Animation > Video Editing`;
+  if (keyword.toLowerCase().includes('shopify')) return `eCommerce Development > Shopify`;
   return `General Services > Other (Please refine based on '${keyword}')`;
 };
 
@@ -107,3 +108,4 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     return { error: errorMessage };
   }
 }
+
