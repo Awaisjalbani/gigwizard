@@ -2,14 +2,15 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, type Auth } from 'firebase/auth';
 
-// IMPORTANT: Replace this with your actual Firebase project configuration
+// User's Firebase project configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Replace with your Firebase project's API Key
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com", // Replace with your Firebase project's Auth Domain
-  projectId: "YOUR_PROJECT_ID", // Replace with your Firebase project's Project ID
-  storageBucket: "YOUR_PROJECT_ID.appspot.com", // Replace with your Firebase project's Storage Bucket
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Replace with your Firebase project's Messaging Sender ID
-  appId: "YOUR_APP_ID", // Replace with your Firebase project's App ID
+  apiKey: "AIzaSyDBP4kwaIvDxJ8VbLU-BriqGw7d80fiBz8",
+  authDomain: "fiverr-ace.firebaseapp.com",
+  projectId: "fiverr-ace",
+  storageBucket: "fiverr-ace.appspot.com", // Corrected from fiverr-ace.firebasestorage.app
+  messagingSenderId: "353900402707",
+  appId: "1:353900402707:web:1328577db049386194c7e6",
+  measurementId: "G-JFE906QYQ2"
 };
 
 let app: FirebaseApp;
