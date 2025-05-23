@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyDBP4kwaIvDxJ8VbLU-BriqGw7d80fiBz8",
   authDomain: "fiverr-ace.firebaseapp.com",
   projectId: "fiverr-ace",
-  storageBucket: "fiverr-ace.firebasestorage.app", // Reverted to user's originally provided value
+  storageBucket: "fiverr-ace.firebasestorage.app",
   messagingSenderId: "353900402707",
   appId: "1:353900402707:web:1328577db049386194c7e6",
   measurementId: "G-JFE906QYQ2"
@@ -47,11 +47,25 @@ export const signInWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error: any) {
-    console.error("Error during Google sign-in:", error.code, error.message);
+    console.error("Error during Google sign-in (raw):", error); // Log the raw error object
+    
     if (error.code === 'auth/unauthorized-domain') {
-        console.error("FIREBASE AUTH ERROR: The domain " + window.location.hostname + " is not authorized for this Firebase project. Please verify your Firebase console's Authentication -> Sign-in method -> Authorized domains settings. Ensure it includes exactly: " + window.location.hostname);
+        const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'UNKNOWN_HOSTNAME (not in browser)';
+        const detailedMessage = `FIREBASE AUTH ERROR: The domain '${currentHostname}' is not authorized for your Firebase project ('${firebaseConfig.projectId}'). 
+        
+To fix this:
+1. Go to your Firebase Console.
+2. Select project: '${firebaseConfig.projectId}'.
+3. Navigate to 'Authentication' > 'Sign-in method' tab.
+4. Scroll to 'Authorized domains' and click 'Add domain'.
+5. Add this exact domain: ${currentHostname}
+
+This is a Firebase project configuration issue, not an application code bug.`;
+        console.error(detailedMessage); // Log detailed message to console
+        throw new Error(detailedMessage); // Throw new error with detailed message for UI
     }
-    throw error;
+    // For other errors, throw a generic message or the original one
+    throw new Error(error.message || 'An unexpected error occurred during sign-in.');
   }
 };
 
