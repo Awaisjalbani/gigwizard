@@ -284,7 +284,7 @@ export default function CreateGigPage() {
           description: result.error,
         });
       }
-    } catch (error: any) => {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Failed to Regenerate Title',
@@ -305,7 +305,7 @@ export default function CreateGigPage() {
         <CardDescription className="text-sm text-foreground pt-1">{pkg.title}</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow pt-4 space-y-3">
-        <div className="text-sm text-muted-foreground h-16 overflow-y-auto custom-scrollbar" dangerouslySetInnerHTML={{ __html: pkg.description.replace(/\n/g, '<br/>') }} />
+        <div className="text-sm text-muted-foreground h-16 overflow-y-auto custom-scrollbar" dangerouslySetInnerHTML={{ __html: (pkg.description || "").replace(/\n/g, '<br/>') }} />
         
         {pkg.features && pkg.features.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border/30">
@@ -761,3 +761,6 @@ export default function CreateGigPage() {
   );
 }
 
+    
+
+    
