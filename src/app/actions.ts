@@ -38,8 +38,8 @@ export interface GigData {
   description?: string;
   faqs?: FAQ[];
   requirements?: string[];
-  imageDataUri?: string;
-  imagePrompt?: string;
+  imageDataUris?: string[]; // Changed from imageDataUri to imageDataUris (array)
+  imagePrompts?: string[]; // Changed from imagePrompt to imagePrompts (array)
   error?: string;
 }
 
@@ -57,28 +57,28 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
   const incrementProgress = (amount: number) => { progress += amount; /* console.log(`Progress: ${progress}%`); */ };
 
   try {
-    // Step 1: Generate Title, Description, and Image Prompt (New Central Flow)
+    // Step 1: Generate Title, Description, and Image Prompts (Array)
     const titleDescImgPromptResult = await generateTitleDescriptionImagePrompt({ mainKeyword });
     incrementProgress(15); // Estimate: 15%
-    const { gigTitle, gigDescription, imagePrompt } = titleDescImgPromptResult;
-    if (!gigTitle || !gigDescription || !imagePrompt) {
-      throw new Error("Failed to generate core gig content (title, description, or image prompt).");
+    const { gigTitle, gigDescription, imagePrompts } = titleDescImgPromptResult; // imagePrompts is now an array
+    if (!gigTitle || !gigDescription || !imagePrompts || imagePrompts.length !== 3) {
+      throw new Error("Failed to generate core gig content (title, description, or 3 image prompts).");
     }
 
-    // Step 2: Suggest Category & Subcategory (Depends on Title & Keyword)
+    // Step 2: Suggest Category & Subcategory
     const categoryResult = await suggestGigCategory({ mainKeyword, gigTitle });
     incrementProgress(10); // Estimate: +10% = 25%
     const { category, subcategory } = categoryResult;
     if (!category || !subcategory) throw new Error("Failed to suggest category/subcategory.");
 
-    // Step 3: Optimize Search Tags (Depends on Title, Keyword, Category, Subcategory)
+    // Step 3: Optimize Search Tags
     const tagsPromise = optimizeSearchTags({ mainKeyword, gigTitle, category, subcategory });
 
-    // Step 4: Suggest Package Pricing (Depends on Keyword, Category, Subcategory)
+    // Step 4: Suggest Package Pricing
     const pricingSuggestionPromise = suggestPackagePricing({ keyword: mainKeyword, category, subcategory });
 
-    // Step 5: Generate Gig Image (Depends on Image Prompt from Step 1) - Start this early
-    const imagePromise = generateGigImage({ imagePrompt }); // Pass the generated prompt
+    // Step 5: Generate Gig Images (plural, takes array of prompts)
+    const imagesPromise = generateGigImage({ imagePrompts }); // Pass the array of prompts
 
     // Awaiting results needed for subsequent dependent calls
     const [tagsResult, pricingSuggestionResult] = await Promise.all([
@@ -101,16 +101,15 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       premiumPrice: pricingSuggestionResult.premium,
     });
 
-    // Step 7: Generate FAQs (using the original description flow, but primarily for its FAQ capability)
+    // Step 7: Generate FAQs
     const simulatedInsights = getSimulatedTopGigInsights(mainKeyword, category, subcategory);
-    // Note: detailedPricingResult is awaited below before being passed here
 
     // Step 8: Suggest Requirements
     const requirementsPromise = suggestRequirements({
       gigTitle,
       gigCategory: category,
       gigSubcategory: subcategory,
-      gigDescription: gigDescription, // Use the description from the new central flow
+      gigDescription: gigDescription,
     });
 
     // Await remaining promises
@@ -127,10 +126,10 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       packageDetails: detailedPricingResult
     });
 
-    const [faqResult, requirementsResult, imageResult] = await Promise.all([
+    const [faqResult, requirementsResult, imagesResult] = await Promise.all([ // imagesResult (plural)
         faqPromise.then(res => { incrementProgress(10); return res; }), // +10% = 80%
         requirementsPromise.then(res => { incrementProgress(10); return res; }), // +10% = 90%
-        imagePromise.then(res => { incrementProgress(10); return res; }) // +10% = 100%
+        imagesPromise.then(res => { incrementProgress(10); return res; }) // +10% = 100%
     ]);
 
     const faqs = faqResult.faqs;
@@ -139,7 +138,9 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     const requirements = requirementsResult.requirements;
     if (!requirements || requirements.length === 0) throw new Error("Failed to suggest requirements.");
 
-    const imageDataUri = imageResult?.imageDataUri;
+    const imageDataUris = imagesResult?.imageDataUris; // imageDataUris (plural)
+    if(!imageDataUris || imageDataUris.length === 0) throw new Error("Failed to generate gig images.");
+
 
     return {
       title: gigTitle,
@@ -150,21 +151,21 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       description: gigDescription,
       faqs: faqs,
       requirements: requirements,
-      imageDataUri: imageDataUri,
-      imagePrompt: imagePrompt,
+      imageDataUris: imageDataUris, // Store array of image URIs
+      imagePrompts: imagePrompts, // Store array of image prompts
     };
   } catch (e: any) {
-    console.error("Error generating full gig data:", e); // Full error logged here
+    console.error("Error generating full gig data:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to generate gig data due to an unknown error.';
 
     if (e.message) {
         const lowerMessage = e.message.toLowerCase();
-        if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters")) {
+        if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters") || lowerMessage.includes("returned no media url")) {
             errorMessage = "Image generation failed. The AI might be unable to create an image for this specific request, or safety filters might have blocked it. Please try a different keyword or check model capabilities.";
         } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
-            errorMessage = "The AI service is currently experiencing high load or is temporarily unavailable. This is usually a temporary issue. Please try again in a few moments. Full error details have been logged.";
+            errorMessage = "The AI service is currently experiencing high load or is temporarily unavailable. This is usually a temporary issue. Please try again in a few moments.";
         } else if (lowerMessage.includes("auth/unauthorized-domain") || lowerMessage.includes("firebase auth error")) {
-          errorMessage = e.message; // Use the detailed message from firebase.ts
+          errorMessage = e.message;
         }
     }
     return { error: errorMessage };
@@ -182,10 +183,10 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
     }
     return result.searchTags;
   } catch (e: any) {
-    console.error("Error refreshing search tags:", e); // Full error logged here
+    console.error("Error refreshing search tags:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to refresh search tags due to an unknown error.';
      if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
-        errorMessage = "The AI service for search tag optimization is currently experiencing high load or is temporarily unavailable. Please try again in a few moments. Full error details have been logged.";
+        errorMessage = "The AI service for search tag optimization is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
     }
     return { error: errorMessage };
   }
@@ -193,26 +194,26 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
 
 
 export async function regenerateGigImageAction(
-  input: GenerateGigImageFromPromptInput
-): Promise<GenerateGigImageOutput | { error: string }> {
-  if (!input.imagePrompt) {
-    return { error: 'Image prompt is required to regenerate an image.' };
+  input: GenerateGigImageFromPromptInput // Accepts array of prompts
+): Promise<GenerateGigImageOutput | { error: string }> { // Returns array of URIs
+  if (!input.imagePrompts || input.imagePrompts.length === 0) {
+    return { error: 'Image prompts are required to regenerate images.' };
   }
   try {
     const result = await generateGigImage(input);
-    if (!result.imageDataUri) {
-      return { error: "AI failed to return an image data URI." };
+    if (!result.imageDataUris || result.imageDataUris.length === 0) {
+      return { error: "AI failed to return any image data URIs." };
     }
-    return result;
+    return result; // Contains imageDataUris array
   } catch (e: any) {
-    console.error("Error regenerating gig image:", e); // Full error logged here
-    let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate image due to an unknown error.';
+    console.error("Error regenerating gig images:", e);
+    let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate images due to an unknown error.';
     if (e.message) {
         const lowerMessage = e.message.toLowerCase();
-        if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters")) {
+        if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters") || lowerMessage.includes("returned no media url")) {
             errorMessage = "Image regeneration failed. The AI might be unable to create an image for this specific prompt, or safety filters might have blocked it. Please try a different approach or check model capabilities.";
         } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
-            errorMessage = "The AI service for image generation is currently experiencing high load or is temporarily unavailable. Please try again in a few moments. Full error details have been logged.";
+            errorMessage = "The AI service for image generation is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
         }
     }
     return { error: errorMessage };
@@ -232,10 +233,10 @@ export async function regenerateTitleAction(
     }
     return result;
   } catch (e: any) {
-    console.error("Error regenerating gig title:", e); // Full error logged here
+    console.error("Error regenerating gig title:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate title due to an unknown error.';
     if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
-        errorMessage = "The AI service for title regeneration is currently experiencing high load or is temporarily unavailable. Please try again in a few moments. Full error details have been logged.";
+        errorMessage = "The AI service for title regeneration is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
     }
     return { error: errorMessage };
   }

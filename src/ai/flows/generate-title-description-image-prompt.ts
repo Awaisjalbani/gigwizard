@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Consolidates the generation of Gig Title, Description, and Image Prompt.
+ * @fileOverview Consolidates the generation of Gig Title, Description, and an array of Image Prompts (hero and samples).
  *
  * - generateTitleDescriptionImagePrompt - A function that handles this consolidated generation.
  */
@@ -52,45 +52,37 @@ Generate the following three components:
       - **### Let's Get Started! (Call to Action)** (A clear and inviting call to action, encouraging the buyer to message or order.)
     - Make it different from common gigs by deeply integrating the selected **unique angle**.
     - Ensure the description is engaging, persuasive, and provides clear value.
-    - Example Structure (for keyword: "Shopify Store Design", tone: premium, angle: exceptional turnaround):
-        ### Opening Hook
-        Need a stunning Shopify store that converts, delivered lightning-fast?
-        ### About My Service
-        I specialize in crafting high-quality, custom Shopify stores that are not only visually appealing but also engineered for sales. With expertise in "{{mainKeyword}}", I bring your e-commerce vision to life.
-        ### Why Choose Me? (Benefits)
-        ✔ Exceptional Turnaround: Get your premium store up and running quicker than you thought possible.
-        ✔ Conversion-Focused Design: Every element is optimized to turn visitors into customers.
-        ✔ Tailored to Your Brand: A unique store that reflects your business identity perfectly.
-        ### What You Will Get
-        ✔ Fully responsive, clean Shopify design
-        ✔ Custom homepage, product pages, about/contact sections
-        ✔ Speed-optimized and SEO-ready setup
-        ✔ Mobile-first, conversion-focused experience
-        ✔ Integration of essential apps
-        ### Let's Get Started! (Call to Action)
-        💬 Ready for a Shopify store that stands out and sells? Message me today to discuss your project!
 
-3.  **Image Prompt** (for an AI image generator like DALL·E or Gemini):
-    - **Objective:** Describe a professional, high-quality, visually striking, and highly relevant Fiverr gig thumbnail image that clearly represents the service offered.
-    - **Context:** Base the image prompt on the main keyword "{{mainKeyword}}" and the style/tone of the generated Gig Title and Description.
-    - **Specificity & Detail:** Be very specific. The more detail you provide, the better the AI image generator can understand the request.
-        - **Dimensions/Aspect Ratio:** Suggest ideal dimensions (e.g., "1280x769px" or "1200x800px") or a standard aspect ratio like 16:9.
-        - **Theme/Style:** Specify the overall theme or style (e.g., "Modern eCommerce theme," "Sleek tech infographic style," "Creative portfolio showcase," "Professional graphic design," "High-quality illustration"). Avoid overly complex photographic realism unless the gig is about photography.
-        - **Background:** Describe the background (e.g., "Clean minimalistic white background," "Light blue gradient," "Subtle, relevant geometric pattern," "Blurred office environment").
-        - **Key Elements/Content:** What should be visible in the image? (e.g., "Include product mockups like clothing or electronics if relevant," "Laptop screen displaying a [relevant software/website like Shopify dashboard]," "Symbolic icons representing the service like shopping carts, code symbols, charts," "A focused, confident freelancer working on a laptop if it adds value and is appropriate for a graphic").
-        - **Typography (If Text is Essential):**
-            - Text should be MINIMAL and VERY SHORT (e.g., the main keyword like '{{mainKeyword}}' or 2-3 impactful words like "Expert Web Design").
-            - Specify font style (e.g., "Bold, clean sans-serif font like Montserrat or Poppins").
-            - Suggest text color and contrast (e.g., "White text with a slight drop shadow for contrast against a darker background element").
-            - **Warning:** Remind that AI image generators often struggle with text, so prioritize strong visuals.
-        - **Color Scheme:** Suggest a color palette that aligns with the gig's tone and industry (e.g., "Vibrant blues and whites for trust and professionalism," "Green accents for growth," "Warm, inviting colors for creative services").
-        - **Quality Descriptors:** Use terms like "High resolution," "Sharp details," "Well-lit," "Visually balanced composition," "Crisp focus."
-        - **Negative Constraints:** Explicitly state what to avoid (e.g., "No copyrighted logos or characters," "Avoid cluttered scenes," "No blurry or pixelated elements").
-    - **Fiverr Compliance:** Ensure the described image would be compliant with Fiverr's image guidelines (e.g., professional, clear, not misleading).
-    - **Uniqueness:** CRITICAL! This image prompt MUST be substantially unique and creative each time, reflecting the specific details and unique angle of the Gig Title and Description that were just generated. Do not repeat image prompt structures or core visual ideas.
-    - **Example of a good detailed image prompt (for keyword: 'Shopify Store Design'):** "Professional Fiverr gig image for a Shopify store design service, 1280x769px. Modern eCommerce theme with a clean, minimalistic light grey background. Features a central laptop mockup displaying a vibrant, well-designed Shopify store homepage. To the side, include subtle, stylized icons like a shopping cart and a sales graph. If text is used, it should be 'Premium Shopify Stores' in a bold, white sans-serif font (like Poppins) positioned unobtrusively. Color scheme: Primary blues (#29ABE2), white, and light grey, with green (#90EE90) accents. Image should be high resolution, sharp, well-lit, and visually balanced. No copyrighted logos. Professional and engaging aesthetic."
+3.  **Image Prompts (Array of 3 strings)**:
+    Generate an array of THREE distinct, detailed image prompts for an AI image generator (like DALL·E or Gemini).
+    Each prompt must be substantially unique and creative, reflecting the specific details and unique angle of the Gig Title and Description that were just generated.
+    The prompts should guide the creation of professional, high-quality, visually striking, and highly relevant Fiverr gig images.
+    All images should aim for dimensions like 1280x769px or 1200x800px, suitable for Fiverr thumbnails.
 
-Output a JSON object with keys "gigTitle", "gigDescription", and "imagePrompt".
+    **Prompt 1: Hero Image**
+    - **Objective:** Describe the main gig thumbnail. It should be professional, eye-catching, and clearly represent the overall service offered, incorporating the main keyword "{{mainKeyword}}" conceptually.
+    - **Style:** Modern, clean, professional (e.g., "Modern eCommerce theme," "Sleek tech infographic style," "Professional graphic design").
+    - **Content:** Include key visual elements that broadly represent the service.
+    - **Text (If Essential):** Minimal text, e.g., "{{mainKeyword}}" or 2-3 impactful words like "Expert Web Design." Specify font style ("Bold, clean sans-serif like Montserrat"). Warn that AI struggles with text.
+    - **Example (for 'Shopify Store Design'):** "Professional Fiverr gig hero image for Shopify store design, 1280x769px. Modern eCommerce theme, light grey background. Central laptop mockup displaying a vibrant Shopify store homepage. Subtle shopping cart and sales graph icons. Text: 'Premium Shopify Stores' in bold white Poppins font. Colors: blues (#29ABE2), white, light grey, green (#90EE90) accents. High resolution, sharp, well-lit. No copyrighted logos."
+
+    **Prompt 2: Sample Project Image 1**
+    - **Objective:** Describe a high-quality image showcasing a *specific example* of the work or a key feature in action. This must be visually distinct from the hero image.
+    - **Focus:** Detail a concrete outcome or a specific use-case relevant to "{{mainKeyword}}".
+    - **Example (for 'Shopify Store Design'):** "Close-up mockup of a sleek, modern product page for a fashion apparel item on a Shopify store. Shows high-quality product photography, clear 'Add to Cart' button, and elegant typography. Style: Minimalist, clean, focused on user experience. Colors: Neutral tones with a single accent color. High resolution, detail-oriented."
+
+    **Prompt 3: Sample Project Image 2 (or Infographic Element)**
+    - **Objective:** Describe another, *different* high-quality image. This could be another project sample, or a simple infographic-style image highlighting a key benefit or process step. Distinct from Hero and Sample 1.
+    - **Focus:** Illustrate a different facet of the service or a unique selling point.
+    - **Example (for 'Shopify Store Design' - infographic style):** "Clean infographic style image, 1280x769px, light blue background. Central graphic: stylized rocket ship icon labeled 'Sales Boost'. Three smaller icons below: 'Mobile Optimized', 'Fast Loading', 'SEO Ready', each with a checkmark. Minimal text. Professional and informative. Colors: primary blue, green accents, white text/icons."
+    - **Example (for 'Shopify Store Design' - another project sample):** "Mockup of a Shopify store's 'About Us' page for a craft brewery, featuring a storytelling design with parallax scrolling effects visible. Warm, inviting color palette with rustic elements. Shows brand personality. High resolution."
+
+    **General Instructions for ALL Image Prompts:**
+    - **Specificity & Detail:** Be very specific about theme, style, background, key elements, typography (if any, minimal), color scheme, quality descriptors (High resolution, Sharp details, Well-lit, Visually balanced), and negative constraints (No copyrighted logos/characters, avoid clutter).
+    - **Fiverr Compliance:** Ensure the described image would be compliant with Fiverr's image guidelines.
+    - **Uniqueness:** CRITICAL! Each of the three image prompts MUST be substantially unique from the others and creative.
+
+Output a JSON object with keys "gigTitle", "gigDescription", and "imagePrompts" (an array of 3 strings).
 `,
 });
 
@@ -103,8 +95,8 @@ const generateTitleDescriptionImagePromptFlow = ai.defineFlow(
   async (input: GenerateTitleDescImgPromptInput) => {
     // Pass the available tones and unique angles to the prompt context
     const {output} = await prompt({...input, tonos, uniqueAngleFocus });
-    if (!output?.gigTitle || !output?.gigDescription || !output?.imagePrompt) {
-        throw new Error("AI failed to generate one or more components (title, description, image prompt).");
+    if (!output?.gigTitle || !output?.gigDescription || !output?.imagePrompts || output.imagePrompts.length !== 3) {
+        throw new Error("AI failed to generate one or more components (title, description, or 3 image prompts).");
     }
     if (!output.gigTitle.toLowerCase().startsWith("i will")) {
       output.gigTitle = "I will " + output.gigTitle;
