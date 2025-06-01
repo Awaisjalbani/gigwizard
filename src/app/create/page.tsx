@@ -32,7 +32,8 @@ import {
   BookCopy,
   LogOut,
   Download,
-  RefreshCw
+  RefreshCw,
+  PenLine, // New icon for title regeneration
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction } from '../actions'; // Adjusted path
+import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction } from '../actions'; // Adjusted path
 import type { SinglePackageDetail, SearchTagAnalytics } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
@@ -68,6 +69,7 @@ export default function CreateGigPage() {
   const [currentMainKeyword, setCurrentMainKeyword] = useState<string | null>(null);
   const [isRefreshingTags, setIsRefreshingTags] = useState(false);
   const [isRecreatingImage, setIsRecreatingImage] = useState(false);
+  const [isRegeneratingTitle, setIsRegeneratingTitle] = useState(false);
 
 
   useEffect(() => {
@@ -252,6 +254,46 @@ export default function CreateGigPage() {
     }
   };
 
+  const handleRegenerateTitle = async () => {
+    if (!currentMainKeyword || !gigData) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Regenerate Title',
+        description: 'Main keyword or initial gig data is missing.',
+      });
+      return;
+    }
+    setIsRegeneratingTitle(true);
+    try {
+      const result = await regenerateTitleAction({
+        mainKeyword: currentMainKeyword,
+        currentTitle: gigData.title,
+      });
+
+      if (result.newGigTitle) {
+        setGigData(prevData => ({ ...prevData, title: result.newGigTitle, error: undefined }));
+        toast({
+          title: 'Title Regenerated!',
+          description: 'A new gig title has been crafted.',
+        });
+      } else if (result.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error Regenerating Title',
+          description: result.error,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Regenerate Title',
+        description: error.message || 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsRegeneratingTitle(false);
+    }
+  };
+
 
   const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => (
     <Card key={pkg.title || tierName} className="flex flex-col shadow-md hover:shadow-lg transition-shadow duration-300 bg-card">
@@ -286,7 +328,7 @@ export default function CreateGigPage() {
   };
 
   const handleSignOut = async () => {
-    setIsLoading(true); // Reuse general isLoading or add specific one for signout
+    setIsLoading(true); 
     try {
       await signOut();
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
@@ -303,7 +345,6 @@ export default function CreateGigPage() {
     if (gigData?.imageDataUri) {
       const link = document.createElement('a');
       link.href = gigData.imageDataUri;
-      // Extract file extension or default to png
       const mimeType = gigData.imageDataUri.substring(gigData.imageDataUri.indexOf(':') + 1, gigData.imageDataUri.indexOf(';'));
       const extension = mimeType.split('/')[1] || 'png';
       link.download = `fiverr-ace-gig-image.${extension}`;
@@ -319,18 +360,18 @@ export default function CreateGigPage() {
   const formatDescription = (description: string | undefined): string => {
     if (!description) return '';
     return description
-      .replace(/\\n/g, '\n') // Normalize escaped newlines first
-      .replace(/\n/g, '<br/>') // Convert actual newlines to <br/>
-      .replace(/^### (.*?)(<br\s*\/?>|$)/gm, '<h3>$1</h3>') // Headings
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold **text**
-      .replace(/__(.*?)__/g, '<strong>$1</strong>')     // Bold __text__
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')       // Italic *text*
-      .replace(/_(.*?)_/g, '<em>$1</em>')         // Italic _text_
+      .replace(/\\n/g, '\n') 
+      .replace(/\n/g, '<br/>') 
+      .replace(/^### (.*?)(<br\s*\/?>|$)/gm, '<h3>$1</h3>') 
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')     
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')       
+      .replace(/_(.*?)_/g, '<em>$1</em>')         
       .replace(/^(?:✔|🏆|-)\s*(.*?)(<br\s*\/?>|$)/gm, (match, content) => {
         let bullet = '';
         if (match.startsWith('✔')) bullet = '<span class="emoji-bullet">✔</span> ';
         else if (match.startsWith('🏆')) bullet = '<span class="emoji-bullet">🏆</span> ';
-        else if (match.startsWith('-')) bullet = '<span class="emoji-bullet">•</span> '; // Or just use default li styling
+        else if (match.startsWith('-')) bullet = '<span class="emoji-bullet">•</span> '; 
         return `<ul><li>${bullet}${content.trim()}</li></ul>`;
       });
   };
@@ -346,8 +387,6 @@ export default function CreateGigPage() {
   }
 
   if (!currentUser) {
-    // This case should ideally be caught by the useEffect redirect,
-    // but as a fallback:
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
         <AlertTriangle className="h-12 w-12 text-destructive" />
@@ -360,6 +399,7 @@ export default function CreateGigPage() {
     );
   }
 
+  const anyActionLoading = isLoading || isRefreshingTags || isRecreatingImage || isRegeneratingTitle;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
@@ -391,7 +431,7 @@ export default function CreateGigPage() {
         .markdown-content ul {
             list-style-type: none;
             margin-left: 0;
-            margin-bottom: 0; /* Prevents large gaps if each item is its own <ul> */
+            margin-bottom: 0; 
             padding-left: 0;
         }
         .markdown-content ul li {
@@ -404,17 +444,16 @@ export default function CreateGigPage() {
         .markdown-content ul li .emoji-bullet {
             color: hsl(var(--primary));
             font-weight: bold;
-            display: inline-block; /* Corrects alignment with text-indent */
-            margin-right: 0.3em; /* Space between bullet and text */
+            display: inline-block; 
+            margin-right: 0.3em; 
         }
-         /* Fallback for non-emoji bullets, if emoji-bullet span is NOT used by regex (e.g., for '-') */
         .markdown-content ul li:not(:has(.emoji-bullet))::before {
-            content: "•"; /* Default bullet */
+            content: "•"; 
             color: hsl(var(--primary));
             font-weight: bold;
             display: inline-block;
-            width: 1.5em; /* Align with emoji-bullet space */
-            text-align: left; /* Ensure bullet is at the start of the indent space */
+            width: 1.5em; 
+            text-align: left; 
         }
          .markdown-content p {
             margin-bottom: 0.75rem;
@@ -448,7 +487,7 @@ export default function CreateGigPage() {
                   <p className="text-sm font-medium text-foreground">{currentUser.displayName || 'User'}</p>
                   <p className="text-xs text-muted-foreground">{currentUser.email}</p>
                 </div>
-                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={isLoading || isRefreshingTags || isRecreatingImage}>
+                <Button onClick={handleSignOut} variant="outline" size="sm" disabled={anyActionLoading}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                 </Button>
@@ -470,13 +509,13 @@ export default function CreateGigPage() {
               placeholder="e.g., modern logo design, shopify store setup, react developer"
               className="text-base py-3 px-4 focus:border-primary focus:ring-primary"
               {...register('mainKeyword')}
-              disabled={isLoading || isRefreshingTags || isRecreatingImage}
+              disabled={anyActionLoading}
             />
             {errors.mainKeyword && (
               <p className="text-sm text-destructive mt-1.5">{errors.mainKeyword.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={isLoading || isRefreshingTags || isRecreatingImage}>
+          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={anyActionLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
@@ -509,7 +548,23 @@ export default function CreateGigPage() {
         {gigData && !gigData.error && !isLoading && (
           <div className="mt-12 space-y-10">
             <GigResultSection title="Optimized Gig Title" icon={Lightbulb}>
-              <p className="text-xl font-semibold p-5 bg-secondary rounded-lg shadow-inner text-foreground">{gigData.title}</p>
+              <div className="flex items-center justify-between p-5 bg-secondary rounded-lg shadow-inner">
+                <p className="text-xl font-semibold text-foreground flex-grow">{gigData.title}</p>
+                <Button
+                  onClick={handleRegenerateTitle}
+                  variant="outline"
+                  size="sm"
+                  className="ml-4 flex-shrink-0"
+                  disabled={isRegeneratingTitle || !currentMainKeyword || anyActionLoading}
+                >
+                  {isRegeneratingTitle ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <PenLine className="mr-2 h-4 w-4" />
+                  )}
+                  Regenerate
+                </Button>
+              </div>
             </GigResultSection>
 
             <div className="grid md:grid-cols-2 gap-8">
@@ -551,7 +606,7 @@ export default function CreateGigPage() {
                 <Button
                   onClick={handleRefreshTags}
                   variant="outline"
-                  disabled={isRefreshingTags || !currentMainKeyword || !gigData.title || isRecreatingImage}
+                  disabled={isRefreshingTags || !currentMainKeyword || !gigData.title || anyActionLoading}
                 >
                   {isRefreshingTags ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -623,11 +678,11 @@ export default function CreateGigPage() {
                 )}
                 {gigData.imageDataUri && (
                   <div className="flex space-x-3 mt-2">
-                    <Button onClick={handleDownloadImage} variant="outline" className="shadow-md" disabled={isRecreatingImage}>
+                    <Button onClick={handleDownloadImage} variant="outline" className="shadow-md" disabled={anyActionLoading}>
                       <Download className="mr-2 h-4 w-4" />
                       Download Image
                     </Button>
-                    <Button onClick={handleRecreateImage} variant="outline" className="shadow-md" disabled={isRecreatingImage || isLoading || isRefreshingTags}>
+                    <Button onClick={handleRecreateImage} variant="outline" className="shadow-md" disabled={anyActionLoading}>
                         {isRecreatingImage ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
@@ -662,13 +717,13 @@ export default function CreateGigPage() {
                     setGigData(null);
                     setProgress(0);
                     setCurrentMainKeyword(null);
-                    reset({ mainKeyword: '' }); // Reset the form input
+                    reset({ mainKeyword: '' }); 
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
                 size="lg"
                 className="py-3 px-8 rounded-lg shadow-md hover:shadow-lg"
-                disabled={isRecreatingImage || isLoading || isRefreshingTags}
+                disabled={anyActionLoading}
               >
                 <ArrowRight className="mr-2.5 h-5 w-5 transform rotate-[270deg]" />
                 Create Another Gig
@@ -686,4 +741,3 @@ export default function CreateGigPage() {
     </div>
   );
 }
-

@@ -73,7 +73,7 @@ export type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
 
 
 // --- Package Detail Generation Schemas ---
-export const SinglePackageDetailSchema = z.object({ 
+export const SinglePackageDetailSchema = z.object({
   title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
   description: z.string().max(180, "Description must not exceed 180 characters.").describe('A detailed, benefit-oriented, and concise description (around 30 words, STRICTLY under 180 characters) of what is included in this package. Highlight key deliverables and unique selling points. This should be based on (simulated) deep research for the keyword and be unique each time.'),
@@ -156,7 +156,7 @@ export const GenerateGigImageOutputSchema = z.object({
 export type GenerateGigImageOutput = z.infer<typeof GenerateGigImageOutputSchema>;
 
 
-// --- NEW: Central Title, Description, Image Prompt Schemas ---
+// --- Central Title, Description, Image Prompt Schemas ---
 export const GenerateTitleDescImgPromptInputSchema = z.object({
   mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
 });
@@ -165,7 +165,18 @@ export type GenerateTitleDescImgPromptInput = z.infer<typeof GenerateTitleDescIm
 export const GenerateTitleDescImgPromptOutputSchema = z.object({
   gigTitle: z.string().describe('Generated gig title, under 80 chars, SEO-optimized, persuasive, with a unique selling point.'),
   gigDescription: z.string().describe('Generated gig description in Markdown, structured with sections (hook, about, benefits, delivery, CTA), unique angle, and chosen tone.'),
-  imagePrompt: z.string().describe('A highly detailed, unique prompt for an AI image generator. It should specify ideal dimensions (e.g., 1280x769px), theme/style (e.g., modern eCommerce, professional graphic design), background, key visual elements, typography guidelines (if text is essential, keep it minimal and legible), color scheme, quality descriptors (high resolution, sharp details), and negative constraints (no copyrighted elements). The prompt aims to produce a professional, engaging, and Fiverr-compliant gig thumbnail that reflects the gig title and description.'),
+  imagePrompt: z.string().describe('A highly detailed, unique prompt for an AI image generator. It should specify ideal dimensions (e.g., "1280x769px" or "1200x800px"), theme/style (e.g., "modern eCommerce theme," "Sleek tech infographic style," "Creative portfolio showcase," "Professional graphic design," "High-quality illustration"), background (e.g., "Clean minimalistic white background," "Light blue gradient"), key visual elements (e.g., "Laptop screen displaying a relevant software/website like Shopify dashboard," "Symbolic icons representing the service like shopping carts, code symbols"), typography guidelines (e.g., "Text should be MINIMAL and VERY SHORT. If used, specify font style like \'Bold, clean sans-serif font like Montserrat or Poppins\'. Warn that AI struggles with text."), color scheme (e.g., "Vibrant blues and whites for trust"), quality descriptors (e.g., "High resolution," "Sharp details"), and negative constraints (e.g., "No copyrighted logos or characters"). The prompt aims to produce a professional, engaging, and Fiverr-compliant gig thumbnail that reflects the gig title and description.'),
 });
 export type GenerateTitleDescImgPromptOutput = z.infer<typeof GenerateTitleDescImgPromptOutputSchema>;
 
+// --- Gig Title Regeneration Schemas ---
+export const RegenerateGigTitleInputSchema = z.object({
+  mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
+  currentTitle: z.string().optional().describe('The current gig title, to ensure the new one is different.'),
+});
+export type RegenerateGigTitleInput = z.infer<typeof RegenerateGigTitleInputSchema>;
+
+export const RegenerateGigTitleOutputSchema = z.object({
+  newGigTitle: z.string().describe('The newly regenerated, different gig title.'),
+});
+export type RegenerateGigTitleOutput = z.infer<typeof RegenerateGigTitleOutputSchema>;

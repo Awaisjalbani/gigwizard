@@ -9,6 +9,8 @@ import { generatePackageDetails } from '@/ai/flows/generate-package-details';
 import { generateGigDescription as generateFaqsOnly } from '@/ai/flows/generate-gig-description';
 import { suggestRequirements } from '@/ai/flows/suggest-requirements';
 import { generateGigImage } from '@/ai/flows/generate-gig-image';
+import { regenerateGigTitle } from '@/ai/flows/regenerate-gig-title';
+
 
 import type {
     GeneratePackageDetailsOutput,
@@ -17,7 +19,9 @@ import type {
     SinglePackageDetail,
     OptimizeSearchTagsInput,
     GenerateGigImageFromPromptInput,
-    GenerateGigImageOutput
+    GenerateGigImageOutput,
+    RegenerateGigTitleInput,
+    RegenerateGigTitleOutput
 } from '@/ai/schemas/gig-generation-schemas';
 
 
@@ -159,9 +163,8 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
             errorMessage = "Image generation failed. The AI might be unable to create an image for this specific request, or safety filters might have blocked it. Please try a different keyword or check model capabilities.";
         } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
             errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + e.message + ")";
-        } else if (lowerMessage.includes("auth/unauthorized-domain")) {
-          // This specific error message is now constructed in firebase.ts
-          errorMessage = e.message;
+        } else if (lowerMessage.includes("auth/unauthorized-domain") || lowerMessage.includes("firebase auth error")) {
+          errorMessage = e.message; // Use the detailed message from firebase.ts
         }
     }
     return { error: errorMessage };
@@ -175,8 +178,6 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
   try {
     const result = await optimizeSearchTags(input);
     if (!result.searchTags || result.searchTags.length === 0) {
-      // This case should ideally be handled by the flow itself with fallbacks,
-      // but as a safeguard:
       return { error: "AI failed to return any search tags." };
     }
     return result.searchTags;
@@ -218,3 +219,24 @@ export async function regenerateGigImageAction(
   }
 }
 
+export async function regenerateTitleAction(
+  input: RegenerateGigTitleInput
+): Promise<RegenerateGigTitleOutput | { error: string }> {
+  if (!input.mainKeyword) {
+    return { error: 'Main keyword is required to regenerate a title.' };
+  }
+  try {
+    const result = await regenerateGigTitle(input);
+    if (!result.newGigTitle) {
+      return { error: "AI failed to return a new gig title." };
+    }
+    return result;
+  } catch (e: any) {
+    console.error("Error regenerating gig title:", e);
+    let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate title due to an unknown error.';
+    if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
+        errorMessage = "The AI service is currently overloaded or unavailable for title regeneration. Please try again in a few moments. (Details: " + e.message + ")";
+    }
+    return { error: errorMessage };
+  }
+}
