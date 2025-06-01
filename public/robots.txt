@@ -1,0 +1,16 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Disallow: # No paths disallowed by default, allow all indexing
+
+# Allow specific bots full access if needed, e.g.
+# User-agent: Googlebot
+# Allow: /
+# User-agent: Bingbot
+# Allow: /
+
+# Point to your sitemap (replace with your actual domain and sitemap path)
+Sitemap: https://your-gigwizard-domain.com/sitemap.xml
+
+# Example: Disallow indexing of specific paths if needed
+# Disallow: /admin/
+# Disallow: /private/

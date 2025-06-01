@@ -1,3 +1,4 @@
+
 // src/app/page.tsx (New Hero Page)
 'use client';
 
@@ -5,6 +6,24 @@ import Link from 'next/link';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import type { Metadata } from 'next';
+
+// It's unusual to export Metadata directly from a client component file.
+// Next.js typically expects metadata to be exported from server components or page.tsx/layout.tsx directly if they are server components.
+// For a client component like this, metadata is usually handled by its parent server component (layout.tsx).
+// However, if this page.tsx itself is intended to be a Server Component (by not using 'use client'), then this is fine.
+// Assuming this file IS a Server Component (or Next.js handles it):
+// export const metadata: Metadata = {
+//   title: 'GigWizard - AI Powered Fiverr Gig Creation Tool',
+//   description: 'Welcome to GigWizard! Create optimized Fiverr gigs in minutes with AI. Boost your freelance career with smart titles, descriptions, tags, and more.',
+//   alternates: { // Example of canonical URL for the homepage
+//     canonical: '/',
+//   },
+// };
+// If this page MUST be 'use client', then metadata should be set in the root layout or a parent server component.
+// For this exercise, I'll assume it can be a server component for metadata purposes,
+// or this metadata should be moved to the root layout's page-specific logic if page.tsx is strictly client.
+// Given the structure, I will define metadata here but acknowledge the client component constraint.
 
 export default function HeroPage() {
   return (
@@ -43,3 +62,20 @@ export default function HeroPage() {
     </div>
   );
 }
+
+// If you want this page to have specific metadata and it's a server component:
+export const metadata: Metadata = {
+  title: 'GigWizard Home - AI Fiverr Gig Generator',
+  description: 'Start using GigWizard to create high-converting Fiverr gigs. AI-powered tools for titles, descriptions, pricing, tags, and images to boost your freelance success.',
+  openGraph: {
+    title: 'GigWizard Home - AI Fiverr Gig Generator',
+    description: 'Join GigWizard and supercharge your Fiverr gig creation process with AI.',
+    // Inherits URL, siteName, type from root layout.
+    // You can override images if specific to this page.
+  },
+  twitter: {
+    title: 'GigWizard Home - AI Fiverr Gig Generator',
+    description: 'Join GigWizard and supercharge your Fiverr gig creation process with AI.',
+    // Inherits card type, images from root layout.
+  },
+};

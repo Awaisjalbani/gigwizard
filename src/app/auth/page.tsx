@@ -1,18 +1,25 @@
+
 // src/app/auth/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithGoogle } from '@/lib/firebase'; // We'll create this
+import { signInWithGoogle } from '@/lib/firebase'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { AlertTriangle, Loader2, Mail, Phone, LogIn } from 'lucide-react';
-import Image from 'next/image'; // For Google icon
+import Image from 'next/image'; 
 import { useToast } from '@/hooks/use-toast';
+import type { Metadata } from 'next';
+
+// Metadata for this page (if it were a Server Component)
+// export const metadata: Metadata = {
+//   title: 'Sign In - GigWizard',
+//   description: 'Sign in or create an account with GigWizard to start generating AI-powered Fiverr gigs.',
+// };
 
 
-// A simple SVG for Google G icon
 const GoogleIcon = () => (
   <svg viewBox="0 0 48 48" width="20px" height="20px">
     <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
@@ -37,21 +44,30 @@ export default function AuthPage() {
       const user = await signInWithGoogle();
       if (user) {
         toast({
-          title: "Signed In Successfully!",
+          title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+               Signed In Successfully!
+            </div>
+          ),
           description: `Welcome, ${user.displayName || 'user'}!`,
         });
-        // Redirect to the gig creation page or a dashboard
         router.push('/create');
       } else {
         throw new Error("Google Sign In did not return a user.");
       }
     } catch (err: any) {
       console.error("Google Sign In Error:", err);
-      setError(err.message || 'Failed to sign in with Google. Please try again.');
+      let displayError = err.message || 'Failed to sign in with Google. Please try again.';
+      // Check if it's the specific Firebase auth domain error
+      if (err.message && (err.message.includes("auth/unauthorized-domain") || err.message.includes("FIREBASE AUTH ERROR"))) {
+        displayError = err.message; // Use the detailed message from firebase.ts
+      }
+      setError(displayError);
       toast({
         variant: "destructive",
         title: "Sign In Failed",
-        description: err.message || 'Could not sign in with Google.',
+        description: displayError,
       });
     } finally {
       setIsLoading(false);
@@ -122,3 +138,9 @@ export default function AuthPage() {
     </div>
   );
 }
+
+// If this page needs to define its own metadata, it should be a Server Component.
+// export const metadata: Metadata = {
+//   title: 'Sign In to GigWizard',
+//   description: 'Access your GigWizard account or sign up to generate AI-powered Fiverr gigs and boost your freelance career.',
+// };
