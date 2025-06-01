@@ -8,7 +8,7 @@ import { signInWithGoogle } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { AlertTriangle, Loader2, Mail, Phone, LogIn } from 'lucide-react';
+import { AlertTriangle, Loader2, Mail, Phone, LogIn, CheckCircle } from 'lucide-react'; // Added CheckCircle here
 import Image from 'next/image'; 
 import { useToast } from '@/hooks/use-toast';
 import type { Metadata } from 'next';
@@ -144,3 +144,4 @@ export default function AuthPage() {
 //   title: 'Sign In to GigWizard',
 //   description: 'Access your GigWizard account or sign up to generate AI-powered Fiverr gigs and boost your freelance career.',
 // };
+
