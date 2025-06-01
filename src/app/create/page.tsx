@@ -2,13 +2,10 @@
 // src/app/create/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-// Removed NextImage import as we'll use standard <img> for data URIs in some places.
-// If NextImage is used elsewhere, it can remain. For this fix, we're targeting specific instances.
-import NextImage from 'next/image'; // Keep for other images if any, or remove if all become <img>
 import { useRouter } from 'next/navigation';
 import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
 import { app as firebaseApp } from '@/lib/firebase';
@@ -51,6 +48,9 @@ import {
   Megaphone,
   Wand2,
   PlayCircle,
+  Volume2,
+  Mic,
+  Captions,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -63,7 +63,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
 import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction, generateIntroVideoAssetsAction } from '../actions';
 import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile, GenerateIntroVideoAssetsOutput } from '@/ai/schemas/gig-generation-schemas';
@@ -101,10 +102,10 @@ export default function CreateGigPage() {
   const [introVideoAssetsError, setIntroVideoAssetsError] = useState<string | null>(null);
   const [generatedVideoSceneImages, setGeneratedVideoSceneImages] = useState<{[key: number]: string | 'loading' | null}>({});
 
-  // State for Animated Preview Player
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [currentPreviewSceneIndex, setCurrentPreviewSceneIndex] = useState(0);
+  const sceneTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 
   useEffect(() => {
@@ -161,7 +162,7 @@ export default function CreateGigPage() {
     setIsAnalyzingMarket(true);
     setMarketAnalysisData(null);
     setMarketAnalysisError(null);
-    setGigData(null); // Reset gig data if starting a new analysis
+    setGigData(null); 
     setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
     setGeneratedVideoSceneImages({});
@@ -212,7 +213,7 @@ export default function CreateGigPage() {
     setGigData(null);
     setCurrentMainKeyword(null);
     setProgress(0);
-    setIntroVideoAssets(null); // Reset video assets when generating a new gig
+    setIntroVideoAssets(null); 
     setIntroVideoAssetsError(null);
     setGeneratedVideoSceneImages({});
     setIsPreviewModalOpen(false);
@@ -220,23 +221,22 @@ export default function CreateGigPage() {
 
     const progressInterval = setInterval(() => {
        setProgress((prev) => {
-        if (prev >= 95 && !gigData) { // If stuck at 95% and gigData isn't there yet, hold
+        if (prev >= 95 && !gigData) { 
           return 95;
         }
-        if (prev >= 100) { // If gigData is received or error, progress to 100
+        if (prev >= 100) { 
             clearInterval(progressInterval);
             return 100;
         }
-        // Dynamic increment: faster at start, slower towards end
         const increment = gigData ? 10 : (prev < 30 ? 5 : (prev < 70 ? 2 : 1));
-        return Math.min(prev + increment, 99); // Cap at 99 until data arrives
+        return Math.min(prev + increment, 99); 
       });
     }, 300);
 
     try {
       const result = await generateFullGig(data.mainKeyword, marketAnalysisData || undefined);
-      clearInterval(progressInterval); // Stop interval once result is back
-      setProgress(100); // Set to 100%
+      clearInterval(progressInterval); 
+      setProgress(100); 
 
       if (result.error) {
         toast({
@@ -255,12 +255,11 @@ export default function CreateGigPage() {
         });
       }
     } catch (error: any) {
-      clearInterval(progressInterval); // Ensure interval is cleared on error
+      clearInterval(progressInterval); 
       setProgress(100);
       let errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred.';
-      // Specific error handling for common issues
       if (error.message && (error.message.includes("auth/unauthorized-domain") || error.message.includes("FIREBASE AUTH ERROR"))) {
-        errorMessage = error.message; // Use the more descriptive error message from firebase.ts
+        errorMessage = error.message; 
       } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded") || error.message.includes("failed_precondition"))) {
         errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments.";
       }
@@ -273,7 +272,7 @@ export default function CreateGigPage() {
       setGigData({ error: errorMessage });
       setCurrentMainKeyword(null);
     } finally {
-      setIsLoading(false); // Ensure loading is set to false in all cases
+      setIsLoading(false); 
     }
   };
 
@@ -336,7 +335,7 @@ export default function CreateGigPage() {
     try {
       const result = await regenerateGigImageAction({ imagePrompts: prompts });
       if (result.imageDataUris && result.imageDataUris.length > 0) {
-        if (!imagePromptsToUse) { // Only update main gigData if not for a specific scene
+        if (!imagePromptsToUse) { 
             setGigData(prevData => ({ ...prevData!, imageDataUris: result.imageDataUris, error: undefined }));
         }
         toast({
@@ -403,15 +402,15 @@ export default function CreateGigPage() {
     }
   };
 
-  const handleGenerateVideoSceneImage = async (prompt: string, sceneIndex: number, isRetry = false) => {
+  const handleGenerateVideoSceneImage = async (prompt: string, sceneIndex: number, isAutoGeneration = false) => {
     setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: 'loading'}));
-    const imageDataUris = await handleRecreateImage([prompt]); // Pass prompt as an array
+    const imageDataUris = await handleRecreateImage([prompt]); 
     if (imageDataUris && imageDataUris[0]) {
         setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: imageDataUris[0]}));
         return imageDataUris[0];
     } else {
-        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: null})); // Mark as failed if no URI
-        if (!isRetry) { // Avoid toast for initial auto-generation failures, only for manual retries
+        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: null})); 
+        if (!isAutoGeneration) { 
           toast({
               variant: 'destructive',
               title: `Scene Image Failed (Scene ${sceneIndex + 1})`,
@@ -434,14 +433,14 @@ export default function CreateGigPage() {
     setIsGeneratingIntroVideoAssets(true);
     setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
-    setGeneratedVideoSceneImages({}); // Reset images
+    setGeneratedVideoSceneImages({}); 
 
     try {
       const result = await generateIntroVideoAssetsAction({
         mainKeyword: currentMainKeyword,
         gigTitle: gigData.title,
         gigDescription: gigData.description,
-        targetAudience: marketAnalysisData?.winningApproachSummary || userGigConcept, // Use market analysis if available
+        targetAudience: marketAnalysisData?.winningApproachSummary || userGigConcept, 
       });
 
       if ('error' in result) {
@@ -451,6 +450,8 @@ export default function CreateGigPage() {
           title: 'Video Assets Generation Failed',
           description: result.error,
         });
+         setIsGeneratingIntroVideoAssets(false);
+         return;
       } else {
         setIntroVideoAssets(result);
         setGigData(prev => ({...prev!, introVideoAssets: result}));
@@ -459,9 +460,8 @@ export default function CreateGigPage() {
           description: 'Attempting to generate scene images automatically...',
         });
 
-        // Auto-generate scene images
         const imageGenPromises = result.visualPrompts.map((prompt, index) =>
-          handleGenerateVideoSceneImage(prompt, index, true) // Pass true for isRetry to suppress individual failure toasts
+          handleGenerateVideoSceneImage(prompt, index, true) 
         );
         const images = await Promise.allSettled(imageGenPromises);
         const allSucceeded = images.every(imgResult => imgResult.status === 'fulfilled' && imgResult.value !== null);
@@ -474,7 +474,7 @@ export default function CreateGigPage() {
           });
         } else if (anySucceeded) {
            toast({
-            variant: 'default', // Not destructive, just a warning
+            variant: 'default', 
             title: 'Some Scene Images Generated',
             description: 'Some scene images were generated, but others failed. You can try regenerating them individually.',
           });
@@ -500,41 +500,76 @@ export default function CreateGigPage() {
   };
 
 
-  // Animated Preview Player Logic
   useEffect(() => {
-    let sceneTimer: NodeJS.Timeout;
     if (isPlayingPreview && isPreviewModalOpen && introVideoAssets && introVideoAssets.visualPrompts.length > 0) {
       const numScenes = introVideoAssets.visualPrompts.length;
-      const totalDurationMs = (introVideoAssets.suggestedDurationSeconds || 20) * 1000; // Default to 20s
-      const durationPerSceneMs = Math.max(1000, totalDurationMs / numScenes); // Min 1s per scene
+      const totalDurationMs = (introVideoAssets.suggestedDurationSeconds || 20) * 1000;
+      const durationPerSceneMs = Math.max(1000, totalDurationMs / numScenes);
 
-      if (currentPreviewSceneIndex < numScenes -1) {
-        sceneTimer = setTimeout(() => {
+      if (sceneTimerRef.current) {
+        clearTimeout(sceneTimerRef.current);
+      }
+
+      if (currentPreviewSceneIndex < numScenes - 1) {
+        sceneTimerRef.current = setTimeout(() => {
           setCurrentPreviewSceneIndex(prevIndex => prevIndex + 1);
         }, durationPerSceneMs);
       } else {
-        // Last scene, stop playing after its duration
-         sceneTimer = setTimeout(() => {
+         sceneTimerRef.current = setTimeout(() => {
             setIsPlayingPreview(false);
-            // Optionally close modal or offer replay:
-            // setIsPreviewModalOpen(false); 
-            // setCurrentPreviewSceneIndex(0);
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+            }
         }, durationPerSceneMs);
       }
+    } else {
+       if (sceneTimerRef.current) {
+        clearTimeout(sceneTimerRef.current);
+      }
+       if ('speechSynthesis' in window && !isPlayingPreview) {
+         window.speechSynthesis.cancel();
+       }
     }
-    return () => clearTimeout(sceneTimer);
+    return () => {
+      if (sceneTimerRef.current) {
+        clearTimeout(sceneTimerRef.current);
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
   }, [isPlayingPreview, currentPreviewSceneIndex, isPreviewModalOpen, introVideoAssets]);
 
   const startPreview = () => {
+    if (!introVideoAssets || !introVideoAssets.script) return;
+
     setCurrentPreviewSceneIndex(0);
     setIsPlayingPreview(true);
     setIsPreviewModalOpen(true);
+
+    if ('speechSynthesis' in window && introVideoAssets.script) {
+      window.speechSynthesis.cancel(); // Cancel any previous speech
+      const utterance = new SpeechSynthesisUtterance(introVideoAssets.script);
+      // You might want to select a voice if available and desired
+      // const voices = window.speechSynthesis.getVoices();
+      // if (voices.length > 0) utterance.voice = voices[0]; 
+      window.speechSynthesis.speak(utterance);
+    } else {
+      toast({
+        variant: "default",
+        title: "Text-to-Speech Not Available",
+        description: "Your browser does not support speech synthesis, or no script is available.",
+      });
+    }
   };
 
   const closePreviewModal = () => {
     setIsPlayingPreview(false);
     setIsPreviewModalOpen(false);
-    setCurrentPreviewSceneIndex(0); // Reset for next play
+    setCurrentPreviewSceneIndex(0); 
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
   };
 
   const allSceneImagesGenerated = introVideoAssets && introVideoAssets.visualPrompts.every((_, index) => typeof generatedVideoSceneImages[index] === 'string');
@@ -694,7 +729,7 @@ export default function CreateGigPage() {
           font-style: italic;
         }
         .script-content {
-          white-space: pre-wrap; /* Preserves line breaks from the script string */
+          white-space: pre-wrap; 
           font-family: var(--font-geist-sans);
           line-height: 1.7;
           color: hsl(var(--muted-foreground));
@@ -705,7 +740,7 @@ export default function CreateGigPage() {
         }
         .preview-image-container {
           width: 100%;
-          max-width: 640px; /* Or your desired max width */
+          max-width: 640px; 
           aspect-ratio: 16 / 9;
           background-color: hsl(var(--muted));
           border-radius: 0.5rem;
@@ -713,11 +748,25 @@ export default function CreateGigPage() {
           align-items: center;
           justify-content: center;
           overflow: hidden;
+          border: 1px solid hsl(var(--border));
         }
         .preview-image {
           width: 100%;
           height: 100%;
-          object-fit: contain; /* Use 'cover' if you prefer to fill, 'contain' to show whole image */
+          object-fit: contain; 
+        }
+        .preview-caption-area {
+          background-color: hsl(var(--background));
+          border-top: 1px solid hsl(var(--border));
+          color: hsl(var(--foreground));
+          font-size: 0.875rem; /* text-sm */
+          line-height: 1.5;
+          max-height: 100px; /* Limit height */
+          overflow-y: auto;
+          padding: 0.75rem 1rem; /* p-3 p-4 */
+          white-space: pre-wrap; /* To respect newlines in script */
+          border-bottom-left-radius: var(--radius);
+          border-bottom-right-radius: var(--radius);
         }
       `}</style>
       <header className="w-full max-w-5xl mb-10 p-4 rounded-lg bg-card shadow-md">
@@ -1025,18 +1074,15 @@ export default function CreateGigPage() {
              <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-8">
                 {gigData.imageDataUris && gigData.imageDataUris.length > 0 ? (
                     <div className="w-full space-y-10">
-                        {/* Hero Image */}
                         {gigData.imageDataUris[0] && (
                             <div className="flex flex-col items-center w-full">
                                 <h4 className="text-md font-semibold text-muted-foreground mb-3">
                                     Main Hero Image
                                 </h4>
                                 <div className="w-full max-w-2xl mx-auto">
-                                    <NextImage
+                                    <img
                                         src={gigData.imageDataUris[0]}
                                         alt="AI Generated Gig Hero Image"
-                                        width={600}
-                                        height={400}
                                         className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
                                         data-ai-hint="professional service hero"
                                     />
@@ -1048,7 +1094,6 @@ export default function CreateGigPage() {
                             </div>
                         )}
 
-                        {/* Sample Images */}
                         {gigData.imageDataUris.length > 1 && (
                              <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-10">
                                 {gigData.imageDataUris.slice(1).map((uri, index) => (
@@ -1057,11 +1102,9 @@ export default function CreateGigPage() {
                                             Sample Image {index + 1}
                                         </h4>
                                         <div className="w-full">
-                                            <NextImage
+                                            <img
                                                 src={uri}
                                                 alt={`AI Generated Gig Sample Image ${index + 1}`}
-                                                width={600}
-                                                height={400}
                                                 className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
                                                 data-ai-hint="professional service sample"
                                             />
@@ -1099,7 +1142,6 @@ export default function CreateGigPage() {
             </div>
         </GigResultSection>
 
-        {/* Section for Intro Video Assets */}
             {gigData && !gigData.error && !isLoading && (
             <GigResultSection title="AI-Generated Intro Video Blueprint" icon={Video} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
                 {!introVideoAssets && !isGeneratingIntroVideoAssets && !introVideoAssetsError && (
@@ -1111,7 +1153,7 @@ export default function CreateGigPage() {
                     <p className="text-xs text-muted-foreground mt-2">Create assets for a short (15-30s) intro video for your gig.</p>
                 </div>
                 )}
-                {isGeneratingIntroVideoAssets && !introVideoAssets && ( // Show initial blueprint loading
+                {isGeneratingIntroVideoAssets && !introVideoAssets && ( 
                     <div className="flex items-center justify-center py-6">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         <p className="ml-3 text-muted-foreground">AI is drafting your video blueprint...</p>
@@ -1142,7 +1184,7 @@ export default function CreateGigPage() {
                     <div className="text-sm script-content">{introVideoAssets.script}</div>
                     </div>
                     <div>
-                    <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Music2 className="w-5 h-5 mr-2" />Audio Suggestion:</h4>
+                    <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Music2 className="w-5 h-5 mr-2" />Audio Suggestion (for final video):</h4>
                     <p className="text-sm text-muted-foreground">{introVideoAssets.audioSuggestion}</p>
                     </div>
                     {introVideoAssets.callToAction && (
@@ -1170,7 +1212,7 @@ export default function CreateGigPage() {
                                         <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Generating image...
                                     </div>
                                 )}
-                                {generatedVideoSceneImages[index] === null && ( // Failed state
+                                {generatedVideoSceneImages[index] === null && ( 
                                      <div className="flex flex-col items-start">
                                         <p className="text-xs text-destructive mb-2">Image generation failed for this scene.</p>
                                         <Button
@@ -1187,7 +1229,6 @@ export default function CreateGigPage() {
                                 )}
                                 {typeof generatedVideoSceneImages[index] === 'string' && (
                                     <div className="mt-3 flex flex-col items-center">
-                                        {/* Using standard img tag for data URI */}
                                         <img
                                             src={generatedVideoSceneImages[index] as string}
                                             alt={`Generated image for video scene ${index + 1}`}
@@ -1223,7 +1264,7 @@ export default function CreateGigPage() {
                         <div className="mt-6 text-center">
                             <Button onClick={startPreview} disabled={anyActionLoading || isPlayingPreview}>
                                 <PlayCircle className="mr-2 h-5 w-5" />
-                                Play Animated Preview
+                                Play Animated Preview with Voice
                             </Button>
                         </div>
                     )}
@@ -1232,18 +1273,26 @@ export default function CreateGigPage() {
             </GigResultSection>
             )}
             
-            {/* Animated Preview Player Modal */}
             {introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
               <Dialog open={isPreviewModalOpen} onOpenChange={(isOpen) => { if (!isOpen) closePreviewModal(); else setIsPreviewModalOpen(true);}}>
-                <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl p-0 overflow-hidden">
-                  <DialogHeader className="p-4 border-b">
-                    <DialogTitle className="text-lg">Intro Video Animated Preview</DialogTitle>
-                    <DialogClose onClick={closePreviewModal} />
+                <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl p-0 overflow-hidden flex flex-col h-[90vh] max-h-[700px]">
+                  <DialogHeader className="p-4 border-b flex-shrink-0">
+                    <div className="flex justify-between items-center">
+                        <DialogTitle className="text-lg flex items-center">
+                            <PlayCircle className="w-5 h-5 mr-2 text-primary" />
+                            Intro Video Animated Preview
+                        </DialogTitle>
+                        <DialogClose onClick={closePreviewModal} />
+                    </div>
+                    <DialogDescription className="text-xs flex items-center gap-4 pt-1">
+                        <span className="flex items-center"><Mic className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" /> Browser Voiceover</span>
+                        <span className="flex items-center"><Captions className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" /> Script Displayed Below</span>
+                        <span className="flex items-center"><Music2 className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" /> Music: {introVideoAssets.audioSuggestion || "Not specified"} (manual add)</span>
+                    </DialogDescription>
                   </DialogHeader>
-                  <div className="p-4 md:p-6 flex flex-col items-center justify-center bg-muted min-h-[300px] md:min-h-[450px]">
+                  <div className="p-4 md:p-6 flex flex-col items-center justify-center bg-muted flex-grow overflow-hidden">
                     {isPlayingPreview && typeof generatedVideoSceneImages[currentPreviewSceneIndex] === 'string' ? (
                       <div className="preview-image-container">
-                         {/* Using standard img tag for data URI */}
                         <img
                           src={generatedVideoSceneImages[currentPreviewSceneIndex] as string}
                           alt={`Preview Scene ${currentPreviewSceneIndex + 1}`}
@@ -1264,7 +1313,12 @@ export default function CreateGigPage() {
                         </p>
                     )}
                   </div>
-                   <div className="p-4 border-t flex justify-end">
+                  {isPlayingPreview && introVideoAssets && introVideoAssets.script && (
+                    <ScrollArea className="preview-caption-area flex-shrink-0 custom-scrollbar">
+                        {introVideoAssets.script}
+                    </ScrollArea>
+                  )}
+                   <div className="p-4 border-t flex justify-end flex-shrink-0">
                         <Button variant="outline" onClick={closePreviewModal}>Close Preview</Button>
                    </div>
                 </DialogContent>
@@ -1288,6 +1342,8 @@ export default function CreateGigPage() {
                     setIsPreviewModalOpen(false);
                     setIsPlayingPreview(false);
                     setCurrentPreviewSceneIndex(0);
+                    if (sceneTimerRef.current) clearTimeout(sceneTimerRef.current);
+                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
@@ -1311,4 +1367,3 @@ export default function CreateGigPage() {
     </div>
   );
 }
-
