@@ -74,7 +74,9 @@ const generatePackageDetailsFlow = ai.defineFlow(
     outputSchema: GeneratePackageDetailsOutputSchema,
   },
   async (input: GeneratePackageDetailsInput): Promise<GeneratePackageDetailsOutput> => {
+    console.log("generatePackageDetailsFlow input:", JSON.stringify(input, null, 2));
     const {output: aiOutput} = await generateDetailsPrompt(input);
+    console.log("AI direct output (aiOutput):", JSON.stringify(aiOutput, null, 2));
 
     // Initialize the result object by merging AI output with fallbacks to ensure all properties exist.
     const result: GeneratePackageDetailsOutput = {
@@ -108,7 +110,7 @@ const generatePackageDetailsFlow = ai.defineFlow(
         
         // Ensure description exists, is not empty/whitespace, and then truncate if necessary
         if (!currentPackage.description || currentPackage.description.trim().length === 0) {
-            console.warn(`Package '${key}' description was missing or empty/whitespace. Using fallback description.`);
+            console.warn(`Package '${key}' description was missing or empty/whitespace. Using fallback description: "Default concise ${key} service overview. Max 99 characters."`);
             currentPackage.description = `Default concise ${key} service overview. Max 99 characters.`;
         }
         
@@ -116,19 +118,19 @@ const generatePackageDetailsFlow = ai.defineFlow(
         if (currentPackage.description.length > 100) { 
             const originalDesc = currentPackage.description;
             console.warn(`Package '${key}' description was >100 chars (length: ${originalDesc.length}). Original: "${originalDesc}". TRUNCATING to 100 chars.`);
-            currentPackage.description = originalDesc.substring(0, 97) + "..."; // Truncate to 97 + "..." = 100
+            currentPackage.description = originalDesc.substring(0, 97) + "..."; // Truncate to 97 + "..." = 100 chars
             console.warn(`Package '${key}' description TRUNCATED to (length: ${currentPackage.description.length}): "${currentPackage.description}"`);
         }
-         // Final check if description became empty after potential truncation or was initially empty
+         // Final check if description became empty after potential truncation or was initially empty/whitespace
          if (currentPackage.description.trim().length === 0) {
-            console.warn(`Package '${key}' description was empty post-processing. Setting a failsafe default.`);
+            console.warn(`Package '${key}' description was empty post-processing. Setting a failsafe default: "Concise service overview."`);
             currentPackage.description = "Concise service overview."; // Default < 100 chars
         }
 
         // Ensure features array exists and has at least one item
         if (!currentPackage.features || currentPackage.features.length === 0) {
             console.warn(`Package '${key}' features were missing or empty. Adding default features.`);
-            currentPackage.features = [`Default feature for ${currentPackage.title}`];
+            currentPackage.features = [`Default feature for ${currentPackage.title || key}`];
         }
         
         // Ensure deliveryTime exists
@@ -141,9 +143,12 @@ const generatePackageDetailsFlow = ai.defineFlow(
             console.warn(`Package '${key}' revisions were missing or empty. Setting a default.`);
             currentPackage.revisions = "Not specified";
         }
+        console.log(`Processed package '${key}': Description length is ${currentPackage.description.length}, Content: "${currentPackage.description}"`);
     }
     
+    console.log("Returning fully processed package details from flow:", JSON.stringify(result, null, 2));
     return result; // Return the fully processed and validated 'result' object
   }
 );
+
 
