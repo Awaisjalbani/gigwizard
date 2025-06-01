@@ -16,10 +16,14 @@ import { z } from 'genkit';
 
 // Define a fallback structure that matches RawSinglePackageDetailSchema
 const fallbackRawPackageDefaults = (price: number, titlePrefix: string, keyword: string): z.infer<typeof import('@/ai/schemas/gig-generation-schemas').RawSinglePackageDetailSchema> => ({
-    title: `${titlePrefix} ${keyword} Spark`, // Make titles more keyword relevant
+    title: `${titlePrefix} ${keyword} Spark (Fallback Gen ${Math.random().toString(36).substring(7)})`,
     price: price,
-    description: `Quality ${keyword} service. Default description for ${titlePrefix}, max 99 chars.`,
-    features: [`Core ${keyword} Feature`, "Standard Support", `${titlePrefix}-specific Benefit`],
+    description: `Solid ${titlePrefix.toLowerCase()} package for ${keyword}, offering core value. Max 99 chars. (Fallback Gen ${Math.random().toString(36).substring(7)})`,
+    features: [
+        `${titlePrefix}-tier ${keyword} essentials delivered.`,
+        "Standard support included.",
+        `Key benefit for ${titlePrefix.toLowerCase()} ${keyword} clients.`
+    ],
     deliveryTime: titlePrefix === "Basic" ? "3 Days" : titlePrefix === "Standard" ? "5 Days" : "7 Days",
     revisions: titlePrefix === "Basic" ? "1 Revision" : titlePrefix === "Standard" ? "3 Revisions" : "5 Revisions"
 });
@@ -34,7 +38,7 @@ const generateDetailsPrompt = ai.definePrompt({
   input: {schema: GeneratePackageDetailsInputSchema},
   output: {schema: RawGeneratePackageDetailsOutputSchema},
   prompt: `You are an expert Fiverr gig strategist specializing in creating highly converting service packages.
-Your task is to generate three distinct packages (Basic, Standard, Premium) for a gig. Your output MUST be significantly different and unique each time this prompt is run, even for identical inputs. Do not repeat titles, descriptions, or feature phrasing from previous generations.
+Your task is to generate three distinct packages (Basic, Standard, Premium) for a gig. Your output MUST be significantly different and unique each time this prompt is run, even for identical inputs. Do not repeat titles, descriptions, or feature phrasing from previous generations. Simulate deep research into typical offerings for the provided context.
 
 Gig Context:
 - Main Keyword: {{{mainKeyword}}}
@@ -49,19 +53,25 @@ Reference Prices (from previous AI analysis of competitors):
 Use these reference prices as a strong guideline. Your final package prices should be these exact reference prices.
 
 For each package (Basic, Standard, Premium), provide:
-1.  A compelling and unique 'title' (e.g., "Keyword Starter Pack", "Growth Accelerator", "Ultimate Domination Kit"). Titles MUST be different for each package tier and completely unique per generation. Be creative.
+1.  A compelling and unique 'title'. Titles MUST be different for each package tier and completely unique per generation. Be creative and specific to the service. For example, for a 'logo design' gig, titles could be "Bronze Logo Sketch," "Silver Brand Identity," "Gold Visual Empire." For 'article writing,' titles like "Essential Blog Post," "Pro SEO Article," "Authority Content Suite." Avoid generic terms like "Basic Pack."
+
 2.  The final 'price' (use the reference prices provided above).
-3.  A concise 'description'. CRITICAL: This description MUST be a high-level overview or a compelling summary of the package's core value proposition. It MUST be ABSOLUTELY, STRICTLY 99 CHARACTERS OR LESS. To be safe, aim for 80-90 characters. DO NOT exceed 99 characters. This is a hard limit. Avoid listing detailed features here; use the 'features' list for that. It must be entirely unique and varied with each generation.
+
+3.  A concise 'description'. CRITICAL: This description MUST be a high-level overview or a compelling summary of the package's core value proposition. It MUST be ABSOLUTELY, STRICTLY 99 CHARACTERS OR LESS. To be safe, aim for 80-90 characters. DO NOT exceed 99 characters. This is a hard limit. Avoid listing detailed features here; use the 'features' list for that. It must be entirely unique, varied with each generation, and enticing. For example, for 'logo design' Premium: "Complete brand visuals with pro files & top support."
+
 4.  A list of 2-5 specific 'features' or deliverables. These features MUST:
-    - Be tailored to the main keyword '{{{mainKeyword}}}' and category '{{{category}}} > {{{subcategory}}}'. For example, if the keyword is "logo design", features might be "2 Initial Concepts", "Source File", "3D Mockup". If it's "article writing", features might be "500 Words", "SEO Optimization", "Topic Research".
-    - Clearly differentiate the value between Basic, Standard, and Premium tiers (e.g., Basic: "1 Concept", Standard: "3 Concepts", Premium: "5 Concepts + Stationery").
-    - Be unique and varied for each package and each time this prompt is run. The phrasing and specific features listed should not be repeated from previous generations.
-    - Example: ["3 Pages Included", "Content Upload", "Speed Optimization", "Source File", "2 Logo Concepts"]
+    - Be tailored to the main keyword '{{{mainKeyword}}}' and category '{{{category}}} > {{{subcategory}}}'. They should be concrete and what a buyer would actually receive.
+    - For example, if the keyword is "logo design", Premium features might be: "3 Unique Logo Concepts", "Vector Source Files (AI, EPS, SVG)", "Social Media Kit (Profile & Banner)", "Stationery Design (Business Card)", "Unlimited Revisions".
+    - If it's "article writing" for a blog, Standard features might be: "750 Word SEO-Optimized Article", "Targeted Keyword Research", "Engaging Title & Meta Description", "1 Stock Image Suggestion", "1 Round of Revisions".
+    - Clearly differentiate the value between Basic, Standard, and Premium tiers. The features should tell a story of increasing value and comprehensiveness. Basic might offer core essentials, Standard adds more depth or options, and Premium offers a complete or deluxe solution.
+    - Be unique and varied for each package and each time this prompt is run. The phrasing and specific features listed should not be repeated from previous generations. Avoid generic features like "Fast Delivery" unless quantified (e.g., "24-Hour Express Delivery Option").
+
 5.  A realistic 'deliveryTime' (e.g., "3 Days", "1 Week").
-6.  The number of 'revisions' offered (e.g., "1 Revision", "Unlimited Revisions").
+
+6.  The number of 'revisions' offered (e.g., "1 Revision", "3 Revisions", "Unlimited Revisions").
 
 Critical Instructions for Uniqueness and Quality:
-- Each time you generate these packages, ensure the 'title', 'description', and 'features' for ALL THREE packages are substantially unique and varied, even if the input keyword, title, category, and prices are the same as a previous request. AVOID REPETITION for these elements. Think of fresh angles and selling points each time.
+- Each time you generate these packages, ensure the 'title', 'description', and 'features' for ALL THREE packages are substantially unique and varied, even if the input keyword, title, category, and prices are the same as a previous request. AVOID REPETITION for these elements. Think of fresh angles, specific deliverables, and selling points each time.
 - For 'deliveryTime' and 'revisions', provide realistic and appropriate values for each package tier, ensuring they show progression of value; extreme uniqueness per generation is not strictly required for these two fields, but they should be logical.
 - Ensure that each package tier offers progressively more value. The descriptions and feature lists must clearly articulate these differences in a new way each time.
 - Model the package structure (what's typically included at each tier for features) based on (simulated analysis of) top-performing gigs for similar services, but present your offering uniquely.
@@ -156,9 +166,12 @@ const generatePackageDetailsFlow = ai.defineFlow(
             currentPackage.description = `Concise ${input.mainKeyword} service overview.`;
         }
 
-        if (!currentPackage.features || currentPackage.features.length === 0) {
-            console.warn(`[generatePackageDetailsFlow] Package '${key}' features were missing or empty. Adding default features.`);
-            currentPackage.features = [`Default feature for ${currentPackage.title || key}`, `Another default ${input.mainKeyword} feature`];
+        if (!currentPackage.features || currentPackage.features.length < 2) { // Ensure at least 2 features
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' features were missing or had less than 2 items. Adding/Adjusting default features.`);
+            currentPackage.features = [
+                `Core ${input.mainKeyword} deliverable for ${key} tier. (Gen ${Math.random().toString(36).substring(7)})`,
+                `Essential ${key}-specific benefit for ${input.mainKeyword}. (Gen ${Math.random().toString(36).substring(7)})`
+            ];
         }
         
         if (!currentPackage.deliveryTime || currentPackage.deliveryTime.trim().length === 0) {
