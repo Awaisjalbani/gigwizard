@@ -3,14 +3,27 @@
 /**
  * @fileOverview Generates detailed, highly converting pricing package details for a Fiverr gig,
  * including specific features, using AI-suggested base prices and aiming for uniqueness and value.
+ * This flow now uses a "Raw" schema for direct AI output to allow for more lenient initial parsing,
+ * and then strictly processes and validates the data against a final "Strict" schema.
  *
  * - generatePackageDetails - A function that generates pricing package details.
  */
 
 import {ai} from '@/ai/genkit';
-import type { GeneratePackageDetailsInput, GeneratePackageDetailsOutput } from '@/ai/schemas/gig-generation-schemas';
-import { GeneratePackageDetailsInputSchema, GeneratePackageDetailsOutputSchema, SinglePackageDetailSchema } from '@/ai/schemas/gig-generation-schemas';
+import type { GeneratePackageDetailsInput, GeneratePackageDetailsOutput, RawGeneratePackageDetailsOutput } from '@/ai/schemas/gig-generation-schemas';
+import { GeneratePackageDetailsInputSchema, GeneratePackageDetailsOutputSchema, RawGeneratePackageDetailsOutputSchema } from '@/ai/schemas/gig-generation-schemas';
 import { z } from 'genkit';
+
+// Define a fallback structure that matches RawSinglePackageDetailSchema (without description length limit initially)
+// This is used if the AI completely fails to return a package structure.
+const fallbackRawPackageDefaults = (price: number, titlePrefix: string): z.infer<typeof import('@/ai/schemas/gig-generation-schemas').RawSinglePackageDetailSchema> => ({
+    title: `${titlePrefix} Package Default`,
+    price: price,
+    description: "High-quality service. Default concise description.",
+    features: ["Core Service Feature", "Standard Support Included"],
+    deliveryTime: "Contact Seller",
+    revisions: "1 Revision"
+});
 
 
 export async function generatePackageDetails(input: GeneratePackageDetailsInput): Promise<GeneratePackageDetailsOutput> {
@@ -20,7 +33,8 @@ export async function generatePackageDetails(input: GeneratePackageDetailsInput)
 const generateDetailsPrompt = ai.definePrompt({
   name: 'generatePackageDetailsPrompt',
   input: {schema: GeneratePackageDetailsInputSchema},
-  output: {schema: GeneratePackageDetailsOutputSchema},
+  // Use the RAW (more lenient) schema for the direct output of this prompt
+  output: {schema: RawGeneratePackageDetailsOutputSchema},
   prompt: `You are an expert Fiverr gig strategist specializing in creating highly converting service packages.
 Your task is to generate three distinct packages (Basic, Standard, Premium) for a gig.
 
@@ -57,98 +71,102 @@ Critical Instructions for Uniqueness and Quality:
 `,
 });
 
-const fallbackPackageDefaults = (price: number, titlePrefix: string): z.infer<typeof SinglePackageDetailSchema> => ({
-    title: `${titlePrefix} Package Default`,
-    price: price,
-    description: "High-quality service. Max 99 characters for this description.", // Fallback description under 100 chars
-    features: ["Core Service Feature", "Standard Support Included"],
-    deliveryTime: "Contact Seller",
-    revisions: "1 Revision"
-});
-
 
 const generatePackageDetailsFlow = ai.defineFlow(
   {
     name: 'generatePackageDetailsFlow',
     inputSchema: GeneratePackageDetailsInputSchema,
+    // The flow's final output must adhere to the STRICT schema
     outputSchema: GeneratePackageDetailsOutputSchema,
   },
   async (input: GeneratePackageDetailsInput): Promise<GeneratePackageDetailsOutput> => {
-    console.log("generatePackageDetailsFlow input:", JSON.stringify(input, null, 2));
-    const {output: aiOutput} = await generateDetailsPrompt(input);
-    console.log("AI direct output (aiOutput):", JSON.stringify(aiOutput, null, 2));
+    console.log("[generatePackageDetailsFlow] Input:", JSON.stringify(input, null, 2));
+    
+    // The 'aiOutput' will be parsed according to RawGeneratePackageDetailsOutputSchema (lenient on description length)
+    const {output: aiOutputUntyped} = await generateDetailsPrompt(input);
+    const aiOutput = aiOutputUntyped as RawGeneratePackageDetailsOutput; // Cast for processing
 
-    // Initialize the result object by merging AI output with fallbacks to ensure all properties exist.
+    console.log("[generatePackageDetailsFlow] AI direct output (parsed as RawSchema):", JSON.stringify(aiOutput, null, 2));
+
+    // Initialize the result object, which will be typed according to the strict GeneratePackageDetailsOutputSchema
+    // We will carefully populate this, ensuring all constraints of the strict schema are met.
     const result: GeneratePackageDetailsOutput = {
-        basic: { 
-            ...fallbackPackageDefaults(input.basePrice, "Basic"), 
-            ...(aiOutput?.basic || {}) 
+        basic: {
+            title: aiOutput?.basic?.title || fallbackRawPackageDefaults(input.basePrice, "Basic").title,
+            price: input.basePrice, // Always use the input price
+            description: aiOutput?.basic?.description || fallbackRawPackageDefaults(input.basePrice, "Basic").description,
+            features: aiOutput?.basic?.features || fallbackRawPackageDefaults(input.basePrice, "Basic").features,
+            deliveryTime: aiOutput?.basic?.deliveryTime || fallbackRawPackageDefaults(input.basePrice, "Basic").deliveryTime,
+            revisions: aiOutput?.basic?.revisions || fallbackRawPackageDefaults(input.basePrice, "Basic").revisions,
         },
-        standard: { 
-            ...fallbackPackageDefaults(input.standardPrice, "Standard"), 
-            ...(aiOutput?.standard || {}) 
+        standard: {
+            title: aiOutput?.standard?.title || fallbackRawPackageDefaults(input.standardPrice, "Standard").title,
+            price: input.standardPrice, // Always use the input price
+            description: aiOutput?.standard?.description || fallbackRawPackageDefaults(input.standardPrice, "Standard").description,
+            features: aiOutput?.standard?.features || fallbackRawPackageDefaults(input.standardPrice, "Standard").features,
+            deliveryTime: aiOutput?.standard?.deliveryTime || fallbackRawPackageDefaults(input.standardPrice, "Standard").deliveryTime,
+            revisions: aiOutput?.standard?.revisions || fallbackRawPackageDefaults(input.standardPrice, "Standard").revisions,
         },
-        premium: { 
-            ...fallbackPackageDefaults(input.premiumPrice, "Premium"), 
-            ...(aiOutput?.premium || {}) 
+        premium: {
+            title: aiOutput?.premium?.title || fallbackRawPackageDefaults(input.premiumPrice, "Premium").title,
+            price: input.premiumPrice, // Always use the input price
+            description: aiOutput?.premium?.description || fallbackRawPackageDefaults(input.premiumPrice, "Premium").description,
+            features: aiOutput?.premium?.features || fallbackRawPackageDefaults(input.premiumPrice, "Premium").features,
+            deliveryTime: aiOutput?.premium?.deliveryTime || fallbackRawPackageDefaults(input.premiumPrice, "Premium").deliveryTime,
+            revisions: aiOutput?.premium?.revisions || fallbackRawPackageDefaults(input.premiumPrice, "Premium").revisions,
         },
     };
     
     const packageKeys: Array<keyof GeneratePackageDetailsOutput> = ['basic', 'standard', 'premium'];
 
     for (const key of packageKeys) {
-        const currentPackage = result[key]; // Modify the package directly within the result object
+        const currentPackage = result[key]; // This is a part of the 'result' object to be returned
 
-        // Ensure the price is exactly what was input (overriding AI if it differed)
-        currentPackage.price = key === 'basic' ? input.basePrice : key === 'standard' ? input.standardPrice : input.premiumPrice;
-
-        // Ensure title exists
+        // Ensure title exists and is not empty
         if (!currentPackage.title || currentPackage.title.trim().length === 0) {
-            console.warn(`Package '${key}' title was missing or empty. Setting a default.`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' title was missing or empty. Setting a default.`);
             currentPackage.title = `${key.charAt(0).toUpperCase() + key.slice(1)} Default Title`;
         }
         
-        // Ensure description exists, is not empty/whitespace, and then truncate if necessary
+        // Ensure description exists, is not empty/whitespace, and then TRUNCATE if necessary
         if (!currentPackage.description || currentPackage.description.trim().length === 0) {
-            console.warn(`Package '${key}' description was missing or empty/whitespace. Using fallback description: "Default concise ${key} service overview. Max 99 characters."`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' description was missing or empty/whitespace. Using fallback.`);
             currentPackage.description = `Default concise ${key} service overview. Max 99 characters.`;
         }
         
-        // THE CRITICAL TRUNCATION: Max 100 characters allowed by schema.
+        // CRITICAL TRUNCATION for the strict schema (maxLength: 100)
         if (currentPackage.description.length > 100) { 
             const originalDesc = currentPackage.description;
-            console.warn(`Package '${key}' description was >100 chars (length: ${originalDesc.length}). Original: "${originalDesc}". TRUNCATING to 100 chars.`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' description from AI was >100 chars (length: ${originalDesc.length}). Original: "${originalDesc}". TRUNCATING to 100 chars.`);
             currentPackage.description = originalDesc.substring(0, 97) + "..."; // Truncate to 97 + "..." = 100 chars
-            console.warn(`Package '${key}' description TRUNCATED to (length: ${currentPackage.description.length}): "${currentPackage.description}"`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' description TRUNCATED to (length: ${currentPackage.description.length}): "${currentPackage.description}"`);
         }
          // Final check if description became empty after potential truncation or was initially empty/whitespace
          if (currentPackage.description.trim().length === 0) {
-            console.warn(`Package '${key}' description was empty post-processing. Setting a failsafe default: "Concise service overview."`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' description was empty post-processing. Setting a failsafe default.`);
             currentPackage.description = "Concise service overview."; // Default < 100 chars
         }
 
         // Ensure features array exists and has at least one item
         if (!currentPackage.features || currentPackage.features.length === 0) {
-            console.warn(`Package '${key}' features were missing or empty. Adding default features.`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' features were missing or empty. Adding default features.`);
             currentPackage.features = [`Default feature for ${currentPackage.title || key}`];
         }
         
         // Ensure deliveryTime exists
         if (!currentPackage.deliveryTime || currentPackage.deliveryTime.trim().length === 0) {
-            console.warn(`Package '${key}' deliveryTime was missing or empty. Setting a default.`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' deliveryTime was missing or empty. Setting a default.`);
             currentPackage.deliveryTime = "Contact Seller";
         }
         // Ensure revisions exist
         if (!currentPackage.revisions || currentPackage.revisions.trim().length === 0) {
-            console.warn(`Package '${key}' revisions were missing or empty. Setting a default.`);
+            console.warn(`[generatePackageDetailsFlow] Package '${key}' revisions were missing or empty. Setting a default.`);
             currentPackage.revisions = "Not specified";
         }
-        console.log(`Processed package '${key}': Description length is ${currentPackage.description.length}, Content: "${currentPackage.description}"`);
+        console.log(`[generatePackageDetailsFlow] Processed package '${key}': Description length is ${currentPackage.description.length}, Content: "${currentPackage.description}"`);
     }
     
-    console.log("Returning fully processed package details from flow:", JSON.stringify(result, null, 2));
-    return result; // Return the fully processed and validated 'result' object
+    console.log("[generatePackageDetailsFlow] Returning fully processed package details (adhering to strict schema):", JSON.stringify(result, null, 2));
+    return result; // This 'result' object is what Genkit will validate against the flow's 'outputSchema'
   }
 );
-
-

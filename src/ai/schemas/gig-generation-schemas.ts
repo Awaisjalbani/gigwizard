@@ -73,6 +73,27 @@ export type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
 
 
 // --- Package Detail Generation Schemas ---
+
+// Raw schema for direct AI output - no length constraint on description yet
+export const RawSinglePackageDetailSchema = z.object({
+  title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
+  price: z.number().describe('The price for this package.'),
+  description: z.string().describe('A concise overview (around 20-30 words) of the package core value. Highlight key deliverables and unique selling points. This should be based on (simulated) deep research for the keyword and be unique each time. Detailed features should be in the features list.'),
+  features: z.array(z.string()).optional().describe('A list of 2-5 key features or deliverables for this package, tailored to the gig type (e.g., ["3 Pages Included", "Content Upload", "Speed Optimization", "2 Logo Concepts"]). Must be unique per package and generation, and show progression of value across tiers.'),
+  deliveryTime: z.string().describe('Estimated delivery time for this package (e.g., "3 Days", "1 Week").'),
+  revisions: z.string().describe('Number of revisions included (e.g., "1 Revision", "3 Revisions", "Unlimited Revisions").')
+});
+export type RawSinglePackageDetail = z.infer<typeof RawSinglePackageDetailSchema>;
+
+export const RawGeneratePackageDetailsOutputSchema = z.object({
+  basic: RawSinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the basic package.')}),
+  standard: RawSinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the standard package.')}),
+  premium: RawSinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the premium package.')})
+});
+export type RawGeneratePackageDetailsOutput = z.infer<typeof RawGeneratePackageDetailsOutputSchema>;
+
+
+// Strict schema for flow output - with length constraint on description
 export const SinglePackageDetailSchema = z.object({
   title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
@@ -95,6 +116,7 @@ export const GeneratePackageDetailsInputSchema = z.object({
 });
 export type GeneratePackageDetailsInput = z.infer<typeof GeneratePackageDetailsInputSchema>;
 
+// This is the strict output schema for the flow
 export const GeneratePackageDetailsOutputSchema = z.object({
   basic: SinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the basic package.')}),
   standard: SinglePackageDetailSchema.extend({price: z.number().describe('Final calculated price for the standard package.')}),
@@ -181,4 +203,3 @@ export const RegenerateGigTitleOutputSchema = z.object({
   newGigTitle: z.string().describe('The newly regenerated, different gig title.'),
 });
 export type RegenerateGigTitleOutput = z.infer<typeof RegenerateGigTitleOutputSchema>;
-
