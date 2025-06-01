@@ -6,7 +6,9 @@ import { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import NextImage from 'next/image';
+// Removed NextImage import as we'll use standard <img> for data URIs in some places.
+// If NextImage is used elsewhere, it can remain. For this fix, we're targeting specific instances.
+import NextImage from 'next/image'; // Keep for other images if any, or remove if all become <img>
 import { useRouter } from 'next/navigation';
 import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
 import { app as firebaseApp } from '@/lib/firebase';
@@ -48,7 +50,7 @@ import {
   Clock,
   Megaphone,
   Wand2,
-  PlayCircle, // Added for Play Preview button
+  PlayCircle,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -61,7 +63,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'; // Added Dialog components
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
 import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction, generateIntroVideoAssetsAction } from '../actions';
 import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile, GenerateIntroVideoAssetsOutput } from '@/ai/schemas/gig-generation-schemas';
@@ -1185,13 +1187,11 @@ export default function CreateGigPage() {
                                 )}
                                 {typeof generatedVideoSceneImages[index] === 'string' && (
                                     <div className="mt-3 flex flex-col items-center">
-                                        <NextImage
+                                        {/* Using standard img tag for data URI */}
+                                        <img
                                             src={generatedVideoSceneImages[index] as string}
                                             alt={`Generated image for video scene ${index + 1}`}
-                                            width={300}
-                                            height={200}
-                                            className="rounded-md border border-border object-cover aspect-video"
-                                            data-ai-hint="video scene visual"
+                                            className="rounded-md border border-border object-cover aspect-video w-full max-w-[300px] h-auto"
                                         />
                                         <div className="flex gap-2 mt-2">
                                             <Button 
@@ -1243,14 +1243,11 @@ export default function CreateGigPage() {
                   <div className="p-4 md:p-6 flex flex-col items-center justify-center bg-muted min-h-[300px] md:min-h-[450px]">
                     {isPlayingPreview && typeof generatedVideoSceneImages[currentPreviewSceneIndex] === 'string' ? (
                       <div className="preview-image-container">
-                        <NextImage
+                         {/* Using standard img tag for data URI */}
+                        <img
                           src={generatedVideoSceneImages[currentPreviewSceneIndex] as string}
                           alt={`Preview Scene ${currentPreviewSceneIndex + 1}`}
-                          width={640}
-                          height={360}
                           className="preview-image"
-                          data-ai-hint="video preview scene"
-                          priority // Prioritize loading current scene image
                         />
                       </div>
                     ) : (
