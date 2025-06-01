@@ -57,7 +57,7 @@ Critical Instructions for Uniqueness and Quality:
 `,
 });
 
-const fallbackPackage = (price: number, titlePrefix: string): z.infer<typeof SinglePackageDetailSchema> => ({
+const fallbackPackageDefaults = (price: number, titlePrefix: string): z.infer<typeof SinglePackageDetailSchema> => ({
     title: `${titlePrefix} Package Default`,
     price: price,
     description: "High-quality service. Max 99 characters for this description.", // Fallback description under 100 chars
@@ -75,29 +75,29 @@ const generatePackageDetailsFlow = ai.defineFlow(
   },
   async (input: GeneratePackageDetailsInput): Promise<GeneratePackageDetailsOutput> => {
     const {output: aiOutput} = await generateDetailsPrompt(input);
-    
-    // Initialize with AI output or fallbacks if AI output is null/undefined
-    const processedOutput: GeneratePackageDetailsOutput = {
-        basic: aiOutput?.basic || fallbackPackage(input.basePrice, "Basic"),
-        standard: aiOutput?.standard || fallbackPackage(input.standardPrice, "Standard"),
-        premium: aiOutput?.premium || fallbackPackage(input.premiumPrice, "Premium"),
+
+    // Initialize the result object by merging AI output with fallbacks to ensure all properties exist.
+    const result: GeneratePackageDetailsOutput = {
+        basic: { 
+            ...fallbackPackageDefaults(input.basePrice, "Basic"), 
+            ...(aiOutput?.basic || {}) 
+        },
+        standard: { 
+            ...fallbackPackageDefaults(input.standardPrice, "Standard"), 
+            ...(aiOutput?.standard || {}) 
+        },
+        premium: { 
+            ...fallbackPackageDefaults(input.premiumPrice, "Premium"), 
+            ...(aiOutput?.premium || {}) 
+        },
     };
     
     const packageKeys: Array<keyof GeneratePackageDetailsOutput> = ['basic', 'standard', 'premium'];
 
     for (const key of packageKeys) {
-        // Ensure the package object itself exists on the processedOutput, if not, use fallback (should be covered by initialization)
-        if (!processedOutput[key]) {
-             console.warn(`Package object for '${key}' was unexpectedly missing after initial processing. Using full fallback.`);
-             processedOutput[key] = fallbackPackage(
-                key === 'basic' ? input.basePrice : key === 'standard' ? input.standardPrice : input.premiumPrice,
-                key.charAt(0).toUpperCase() + key.slice(1)
-            );
-        }
-        
-        const currentPackage = processedOutput[key]; 
+        const currentPackage = result[key]; // Modify the package directly within the result object
 
-        // Set price from input, overriding AI if necessary (already done by fallback if pkg was initially missing)
+        // Ensure the price is exactly what was input (overriding AI if it differed)
         currentPackage.price = key === 'basic' ? input.basePrice : key === 'standard' ? input.standardPrice : input.premiumPrice;
 
         // Ensure title exists
@@ -111,10 +111,11 @@ const generatePackageDetailsFlow = ai.defineFlow(
             console.warn(`Package '${key}' description was missing or empty/whitespace. Using fallback description.`);
             currentPackage.description = `Default concise ${key} service overview. Max 99 characters.`;
         }
-        // THE CRITICAL TRUNCATION
-        if (currentPackage.description.length > 100) { // Check against 100 for safety, schema uses max 100
+        
+        // THE CRITICAL TRUNCATION: Max 100 characters allowed by schema.
+        if (currentPackage.description.length > 100) { 
             const originalDesc = currentPackage.description;
-            console.warn(`Package '${key}' description was >100 chars (length: ${originalDesc.length}). Original: "${originalDesc}". TRUNCATING...`);
+            console.warn(`Package '${key}' description was >100 chars (length: ${originalDesc.length}). Original: "${originalDesc}". TRUNCATING to 100 chars.`);
             currentPackage.description = originalDesc.substring(0, 97) + "..."; // Truncate to 97 + "..." = 100
             console.warn(`Package '${key}' description TRUNCATED to (length: ${currentPackage.description.length}): "${currentPackage.description}"`);
         }
@@ -123,7 +124,6 @@ const generatePackageDetailsFlow = ai.defineFlow(
             console.warn(`Package '${key}' description was empty post-processing. Setting a failsafe default.`);
             currentPackage.description = "Concise service overview."; // Default < 100 chars
         }
-
 
         // Ensure features array exists and has at least one item
         if (!currentPackage.features || currentPackage.features.length === 0) {
@@ -143,7 +143,7 @@ const generatePackageDetailsFlow = ai.defineFlow(
         }
     }
     
-    return processedOutput;
+    return result; // Return the fully processed and validated 'result' object
   }
 );
 
