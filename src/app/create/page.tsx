@@ -841,7 +841,6 @@ export default function CreateGigPage() {
                                         alt="AI Generated Gig Hero Image"
                                         width={600}
                                         height={400}
-                                        priority
                                         className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
                                         data-ai-hint="professional service hero"
                                     />
