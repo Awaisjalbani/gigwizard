@@ -38,7 +38,7 @@ Use these reference prices as a strong guideline. Your final package prices shou
 For each package (Basic, Standard, Premium), provide:
 1.  A compelling and unique 'title' (e.g., "Keyword Starter Pack", "Growth Accelerator", "Ultimate Domination Kit"). Titles MUST be different for each package tier and unique per generation.
 2.  The final 'price' (use the reference prices provided above).
-3.  A concise 'description' (around 20-30 words, STRICTLY under 100 characters). This description should be a high-level overview or a compelling summary of the package's core value proposition. Avoid listing detailed features here; use the 'features' list for that. It should be unique and varied.
+3.  A concise 'description'. CRITICAL: This description MUST be a high-level overview or a compelling summary of the package's core value proposition. It MUST be around 20-30 words and ABSOLUTELY, STRICTLY under 100 characters. DO NOT exceed 100 characters. This is a hard limit. Avoid listing detailed features here; use the 'features' list for that. It should be unique and varied.
 4.  A list of 2-5 specific 'features' or deliverables. These features MUST:
     - Be tailored to the main keyword '{{{mainKeyword}}}' and category '{{{category}}} > {{{subcategory}}}'. For example, if the keyword is "logo design", features might be "2 Initial Concepts", "Source File", "3D Mockup". If it's "article writing", features might be "500 Words", "SEO Optimization", "Topic Research".
     - Clearly differentiate the value between Basic, Standard, and Premium tiers (e.g., Basic: "1 Concept", Standard: "3 Concepts", Premium: "5 Concepts + Stationery").
@@ -52,6 +52,7 @@ Critical Instructions for Uniqueness and Quality:
 - Ensure that each package tier offers progressively more value. The descriptions and feature lists must clearly articulate these differences.
 - The goal is to create packages that are attractive, competitive, and encourage buyers to choose higher-value options by showcasing standout value.
 - Model the package structure (what's typically included at each tier for features) based on (simulated analysis of) top-performing gigs for similar services.
+- REMEMBER: Package descriptions MUST BE UNDER 100 CHARACTERS.
 `,
 });
 
@@ -63,27 +64,60 @@ const generatePackageDetailsFlow = ai.defineFlow(
   },
   async (input: GeneratePackageDetailsInput) => {
     const {output} = await generateDetailsPrompt(input);
+    
+    const fallbackPackage = (price: number, titlePrefix: string) => ({
+        title: `${titlePrefix} Package`,
+        price: price,
+        description: "Essential services to get you started. Max 100 chars.",
+        features: ["Core Service Delivery", "Standard Support"],
+        deliveryTime: "3 Days",
+        revisions: "1 Revision"
+    });
+
     if (!output) {
-        // Fallback if AI fails completely
-        const defaultFeatures = ["Core Service Delivery", "Standard Support"];
         return {
-            basic: { title: "Basic Package", price: input.basePrice, description: "Essential services to get you started.", features: defaultFeatures, deliveryTime: "3 Days", revisions: "1 Revision" },
-            standard: { title: "Standard Package", price: input.standardPrice, description: "More comprehensive services for better results.", features: [...defaultFeatures, "Enhanced Feature 1"], deliveryTime: "5 Days", revisions: "3 Revisions" },
-            premium: { title: "Premium Package", price: input.premiumPrice, description: "The complete solution for maximum impact.", features: [...defaultFeatures, "Enhanced Feature 1", "Premium Only Feature"], deliveryTime: "7 Days", revisions: "Unlimited Revisions" },
+            basic: fallbackPackage(input.basePrice, "Basic"),
+            standard: fallbackPackage(input.standardPrice, "Standard"),
+            premium: fallbackPackage(input.premiumPrice, "Premium"),
         };
     }
-    // Ensure prices match the input reference prices, as per prompt instruction.
-    output.basic.price = input.basePrice;
-    output.standard.price = input.standardPrice;
-    output.premium.price = input.premiumPrice;
+    
+    const packagesToProcess = [output.basic, output.standard, output.premium];
+    const inputPrices = [input.basePrice, input.standardPrice, input.premiumPrice];
+    const packageKeys = ['basic', 'standard', 'premium'] as const;
 
-    // Ensure features array exists, even if empty, if AI omits it (though Zod optional handles undefined)
-    for (const pkg of [output.basic, output.standard, output.premium]) {
-        if (!pkg.features) {
-            pkg.features = [`Default feature for ${pkg.title || 'package'}`]; 
+    for (let i = 0; i < packagesToProcess.length; i++) {
+        let pkg = packagesToProcess[i];
+        const key = packageKeys[i];
+        
+        if (!pkg) {
+            // If a whole package object is missing, create a fallback
+            console.warn(`AI output for package '${key}' was missing. Using fallback.`);
+            pkg = fallbackPackage(inputPrices[i], key.charAt(0).toUpperCase() + key.slice(1));
+            (output as any)[key] = pkg; // Assign back to output if it was entirely missing
         }
-         if (pkg.features.length === 0) {
-            pkg.features.push(`Key deliverable for ${pkg.title || 'package'}`);
+
+        // Ensure prices match the input reference prices
+        pkg.price = inputPrices[i];
+
+        // Fallback for features if missing or empty
+        if (!pkg.features || pkg.features.length === 0) {
+            pkg.features = [`Default feature for ${pkg.title || key}`];
+            if (pkg.features.length === 0) { // Should not happen with above, but defensive
+                 pkg.features.push(`Key deliverable for ${pkg.title || key}`);
+            }
+        }
+        
+        // Fallback and Truncate description if necessary
+        if (!pkg.description) {
+            pkg.description = `High-quality ${key} service. Under 100 chars.`;
+        }
+        if (pkg.description.length > 100) {
+            console.warn(`Package '${key}' description was >100 chars (${pkg.description.length}). Truncating.`);
+            pkg.description = pkg.description.substring(0, 97) + "...";
+        }
+         if (pkg.description.length === 0) { // Ensure not empty after potential truncation logic error
+            pkg.description = "Concise service overview.";
         }
     }
     
