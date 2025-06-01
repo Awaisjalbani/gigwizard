@@ -25,14 +25,14 @@ const prompt = ai.definePrompt({
   Based on the main keyword: "{{{mainKeyword}}}"
 
   Generate one compelling and effective gig title that:
-  - Starts with "I will..."
+  - STRICTLY starts with "I will..."
   - Is optimized for Fiverr search (incorporate the main keyword naturally).
-  - Uses power words to increase click-through rate (e.g., "premium," "professional," "custom," "expert," "fast," "convert").
+  - Uses a unique combination of power words to increase click-through rate (e.g., "premium," "professional," "custom," "expert," "fast," "convert," "stunning," "dynamic," "results-driven"). Vary these words from any previous attempts.
   - Is clear, concise, and accurately reflects the service offered.
   - Adheres to Fiverr's character limits for titles (typically around 60-80 characters, aim for optimal length).
   - Avoids all caps and excessive special characters.
 
-  IMPORTANT: Ensure the generated gig title is unique and substantially varied each time this prompt is run, even for the same input keyword. Do not repeat previous titles.
+  IMPORTANT: Ensure the generated gig title is unique and substantially varied each time this prompt is run, even for the same input keyword. Do not repeat previous titles. Explore different angles or benefits in the title.
   Provide only the gig title string as the output.`,
 });
 
@@ -45,8 +45,21 @@ const generateGigTitleFlow = ai.defineFlow(
   async (input: GenerateGigTitleInput) => {
     const {output} = await prompt(input);
     if (!output?.gigTitle) {
-        throw new Error("AI failed to generate a gig title.");
+        // Fallback with more variation
+        const variations = [
+            `I will deliver expert ${input.mainKeyword} results fast`,
+            `I will create stunning ${input.mainKeyword} for your project`,
+            `I will provide professional ${input.mainKeyword} services today`,
+            `I will be your go-to for ${input.mainKeyword} solutions`
+        ];
+        const randomTitle = variations[Math.floor(Math.random() * variations.length)];
+        return { gigTitle: randomTitle };
     }
-    return output!;
+    // Ensure "I will" prefix if somehow missed by AI
+    if (!output.gigTitle.toLowerCase().startsWith("i will ")) {
+        output.gigTitle = "I will " + output.gigTitle;
+    }
+    return output;
   }
 );
+

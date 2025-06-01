@@ -41,7 +41,7 @@ FAQs Requirements:
   - Each FAQ must have a clear 'question' and a direct, helpful 'answer'.
   - Questions and answers should be concise and directly address potential buyer concerns related to this specific gig.
   - Base FAQs on the gig's services, category, and typical client queries.
-- Uniqueness: IMPORTANT! Ensure the generated questions AND answers are unique and varied each time, even for the same input.
+- Uniqueness: IMPORTANT! Ensure the generated questions AND answers are unique and substantially varied each time this prompt is run, even for the same input. Do not repeat previous FAQs or use templated responses.
 
 Gig Description Requirements (Secondary Task - may be overridden):
 - Content:
@@ -51,9 +51,9 @@ Gig Description Requirements (Secondary Task - may be overridden):
   - Explain why the buyer should choose this service (unique selling points, expertise).
   - Use persuasive copywriting techniques (e.g., AIDA: Attention, Interest, Desire, Action; or PAS: Problem, Agitate, Solution).
 - Formatting: Use Markdown for clear structure (headings, bullet points, bold text for emphasis).
-- Uniqueness: IMPORTANT! Ensure the description content is entirely unique and substantially varied each time this prompt is run, even for the same input. Avoid templated responses.
+- Uniqueness: IMPORTANT! Ensure the description content is entirely unique and substantially varied each time this prompt is run, even for the same input. Avoid templated responses and do not repeat previous descriptions.
 
-Output the gig description and FAQs according to the defined JSON schema. Focus heavily on providing excellent FAQs.
+Output the gig description and FAQs according to the defined JSON schema. Focus heavily on providing excellent, unique FAQs.
 `,
 });
 
@@ -81,15 +81,15 @@ const generateGigDescriptionFlow = ai.defineFlow(
         console.warn("AI did not return 4-5 FAQs. Adjusting or using fallback.");
         // Simple fallback - can be improved
         output.faqs = [
-            { question: "What do I need to provide to get started?", answer: "Please provide all necessary details and assets specific to your project after ordering." },
-            { question: "How many revisions are included?", answer: "Revision counts vary by package. Please check the package details." },
-            { question: "What is your delivery time?", answer: "Delivery times are specified in each package. Expedited options may be available as an extra." },
-            { question: "Can you handle custom requests?", answer: "Yes, please message me before ordering to discuss your custom requirements." }
+            { question: `What key information is needed for ${input.mainKeyword}?`, answer: "To start, I'll need [example detail 1 for keyword] and [example detail 2 for keyword]." },
+            { question: `Are your packages for ${input.subcategory} customizable?`, answer: "Yes, while the packages offer great value, feel free to message me to discuss custom scope." },
+            { question: "What's the typical turnaround for a project like this?", answer: "Delivery times are listed per package, but rush options can sometimes be accommodated." },
+            { question: "How do you ensure quality for " + input.mainKeyword + " services?", answer: "I focus on [specific quality aspect] and maintain clear communication throughout the project." }
         ].slice(0, Math.max(4, Math.min(5, output.faqs?.length || 4))); // Ensure 4-5
     }
     // Ensure a description is present, even if basic, if AI somehow omits it
     if (!output.gigDescription) {
-        output.gigDescription = "Welcome to my gig! I offer professional services tailored to your needs. Please check the packages for details or contact me for custom requests."
+        output.gigDescription = `Welcome to my gig offering expert ${input.mainKeyword} services! I specialize in ${input.subcategory}. Please review packages or contact me for custom needs.`;
     }
     return output;
   }

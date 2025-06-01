@@ -49,6 +49,12 @@ const fetchKeywordAnalyticsTool = ai.defineTool(
       { term: `${input.mainKeyword}`, volume: 'High', competition: 'High' }, // Ensure main keyword is an option
       { term: `${input.subcategory}`, volume: 'Medium', competition: 'Medium' },
       { term: `${input.category}`, volume: 'Medium', competition: 'Medium' },
+      // Added more specific/long-tail variations for diversity
+      { term: `top rated ${input.mainKeyword}`, volume: getRandom(volumes), competition: getRandom(competitions) },
+      { term: `${input.mainKeyword} solutions`, volume: getRandom(volumes), competition: getRandom(competitions) },
+      { term: `quick ${input.mainKeyword} delivery`, volume: getRandom(volumes), competition: getRandom(competitions) },
+      { term: `${input.mainKeyword} specialist`, volume: getRandom(volumes), competition: getRandom(competitions) },
+      { term: `online ${input.mainKeyword} help`, volume: getRandom(volumes), competition: getRandom(competitions) },
     ];
     // Shuffle and pick a few to make it seem dynamic, ensuring some variety.
     // Filter out duplicates by term before returning.
@@ -57,7 +63,7 @@ const fetchKeywordAnalyticsTool = ai.defineTool(
         t.term === value.term
       ))
     );
-    return { relatedKeywords: uniqueKeywords.sort(() => 0.5 - Math.random()).slice(0, 10) };
+    return { relatedKeywords: uniqueKeywords.sort(() => 0.5 - Math.random()).slice(0, 12) }; // Increased pool size
   }
 );
 
@@ -87,13 +93,13 @@ const prompt = ai.definePrompt({
   1. Are highly relevant to the gig's main keyword, title, and category.
   2. Prioritize terms with good search volume (Medium or High if possible).
   3. Favor less competitive terms (Low or Medium if good volume).
-  4. Adhere to Fiverr best practices for tags (e.g., character limits, clarity, no special characters unless part of the keyword).
+  4. Adhere to Fiverr best practices for tags (e.g., character limits, clarity, no special characters unless part of the keyword). Each tag typically is 1-3 words.
   5. The main keyword itself can be one of the tags if it's strong.
   6. Ensure the final list of 5 tags contains unique terms.
 
   Provide the 5 search tags as an array of objects, where each object has 'term', 'volume', and 'competition' fields.
   The 'volume' and 'competition' fields should reflect the data obtained from the tool for the chosen term.
-  IMPORTANT: Ensure the generated search tags are unique and strategically chosen based on the (simulated) analytics each time, even for the same input keyword. Avoid generic tags unless data supports them.
+  IMPORTANT: Ensure the generated search tags are unique and strategically chosen based on the (simulated) analytics each time, even for the same input keyword. Avoid generic tags unless data supports them, and try to provide a varied set of tags that cover different angles if possible.
   Output exactly 5 tags.
   `,
 });
@@ -115,10 +121,15 @@ const optimizeSearchTagsFlow = ai.defineFlow(
             { term: `custom ${input.mainKeyword}`, volume: 'Medium', competition: 'Low' },
             { term: `${input.category} specialist`, volume: 'Medium', competition: 'High' }
         ].slice(0,5).filter((tag, index, self) => self.findIndex(t => t.term === tag.term) === index); 
-        return { searchTags: fallbackTags };
+        // Ensure no duplicates in fallback
+        while (fallbackTags.length < 5) {
+            fallbackTags.push({term: `unique fallback ${fallbackTags.length + 1}`, volume: 'Low', competition: 'Low'});
+        }
+        return { searchTags: fallbackTags.slice(0,5) };
     }
     // Ensure exactly 5 tags are returned, preferring the AI's selection
-    let finalTags = output.searchTags;
+    let finalTags = output.searchTags.filter((tag, index, self) => self.findIndex(t => t.term === tag.term) === index); // Remove duplicates from AI
+
     if (finalTags.length > 5) {
         finalTags = finalTags.slice(0, 5);
     } else if (finalTags.length < 5) {
@@ -128,7 +139,9 @@ const optimizeSearchTagsFlow = ai.defineFlow(
             { term: input.subcategory, volume: 'Low', competition: 'Low' },
             { term: input.category, volume: 'Low', competition: 'Medium'},
             { term: `${input.mainKeyword} services`, volume: 'High', competition: 'High' },
-            { term: `professional ${input.mainKeyword}`, volume: 'Medium', competition: 'Medium' }
+            { term: `professional ${input.mainKeyword}`, volume: 'Medium', competition: 'Medium' },
+            { term: `fast ${input.mainKeyword}`, volume: 'Low', competition: 'Medium' },
+            { term: `${input.mainKeyword} pro`, volume: 'Medium', competition: 'High' }
         ];
         let i = 0;
         while(finalTags.length < 5 && i < fallbackOptions.length) {
@@ -136,6 +149,10 @@ const optimizeSearchTagsFlow = ai.defineFlow(
                 finalTags.push(fallbackOptions[i]);
             }
             i++;
+        }
+         // Ensure 5 tags even if all fallbacks are used up and duplicates existed
+        while (finalTags.length < 5) {
+            finalTags.push({term: `extra fallback ${finalTags.length + 1}`, volume: 'Low', competition: 'Low'});
         }
     }
     // Ensure all tags have at least default analytics if missing (shouldn't happen with schema)
@@ -148,3 +165,4 @@ const optimizeSearchTagsFlow = ai.defineFlow(
     return { searchTags: finalTags.slice(0,5) }; // Final trim to 5
   }
 );
+
