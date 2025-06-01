@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import type { Metadata } from 'next';
+// import type { Metadata } from 'next'; // Metadata type import is not needed here if metadata object is removed
 
 // It's unusual to export Metadata directly from a client component file.
 // Next.js typically expects metadata to be exported from server components or page.tsx/layout.tsx directly if they are server components.
@@ -21,7 +21,7 @@ import type { Metadata } from 'next';
 //   },
 // };
 // If this page MUST be 'use client', then metadata should be set in the root layout or a parent server component.
-// For this exercise, I'll assume it can be a server component for metadata purposes,
+// For this exercise, I will assume it can be a server component for metadata purposes,
 // or this metadata should be moved to the root layout's page-specific logic if page.tsx is strictly client.
 // Given the structure, I will define metadata here but acknowledge the client component constraint.
 
@@ -63,19 +63,22 @@ export default function HeroPage() {
   );
 }
 
-// If you want this page to have specific metadata and it's a server component:
-export const metadata: Metadata = {
-  title: 'GigWizard Home - AI Fiverr Gig Generator',
-  description: 'Start using GigWizard to create high-converting Fiverr gigs. AI-powered tools for titles, descriptions, pricing, tags, and images to boost your freelance success.',
-  openGraph: {
-    title: 'GigWizard Home - AI Fiverr Gig Generator',
-    description: 'Join GigWizard and supercharge your Fiverr gig creation process with AI.',
-    // Inherits URL, siteName, type from root layout.
-    // You can override images if specific to this page.
-  },
-  twitter: {
-    title: 'GigWizard Home - AI Fiverr Gig Generator',
-    description: 'Join GigWizard and supercharge your Fiverr gig creation process with AI.',
-    // Inherits card type, images from root layout.
-  },
-};
+// The following metadata block caused the error because this is a Client Component.
+// It has been removed. Metadata for this page should be handled by src/app/layout.tsx
+// or a parent Server Component.
+//
+// export const metadata: Metadata = {
+//   title: 'GigWizard Home - AI Fiverr Gig Generator',
+//   description: 'Start using GigWizard to create high-converting Fiverr gigs. AI-powered tools for titles, descriptions, pricing, tags, and images to boost your freelance success.',
+//   openGraph: {
+//     title: 'GigWizard Home - AI Fiverr Gig Generator',
+//     description: 'Join GigWizard and supercharge your Fiverr gig creation process with AI.',
+//     // Inherits URL, siteName, type from root layout.
+//     // You can override images if specific to this page.
+//   },
+//   twitter: {
+//     title: 'GigWizard Home - AI Fiverr Gig Generator',
+//     description: 'Join GigWizard and supercharge your Fiverr gig creation process with AI.',
+//     // Inherits card type, images from root layout.
+//   },
+// };
