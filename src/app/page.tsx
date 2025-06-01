@@ -14,7 +14,7 @@ export default function HeroPage() {
           <Sparkles className="h-14 w-14 text-primary-foreground" />
         </div>
         <h1 className="text-5xl md:text-6xl font-bold text-primary tracking-tight">
-          Welcome to Fiverr Ace
+          Welcome to GigWizard
         </h1>
         <p className="text-xl md:text-2xl text-muted-foreground mt-6 max-w-xl mx-auto">
           Unleash the power of AI to craft compelling, high-converting Fiverr gigs in minutes.
@@ -24,7 +24,7 @@ export default function HeroPage() {
 
       <main className="w-full max-w-md">
         <Link href="/auth" passHref>
-          <Button size="lg" className="w-full text-lg py-7 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+          <Button size="lg" className="w-full text-lg py-7 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300">
             Get Started For Free
             <ArrowRight className="ml-2.5 h-5 w-5" />
           </Button>
@@ -37,7 +37,7 @@ export default function HeroPage() {
       <footer className="w-full max-w-5xl mt-20">
         <Separator className="my-8" />
         <p className="text-md text-muted-foreground">
-          Fiverr Ace &copy; {new Date().getFullYear()}. AI-Powered Gig Creation.
+          GigWizard &copy; {new Date().getFullYear()}. AI-Powered Gig Creation.
         </p>
       </footer>
     </div>

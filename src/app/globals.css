@@ -8,86 +8,96 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 94.1%; /* #F0F0F0 */
-    --foreground: 0 0% 20%; /* Dark gray for text on light gray background */
+    --background: 220 13% 95%; /* Light Gray background (e.g., #F1F2F4) */
+    --foreground: 233 3% 26%; /* Dark Gray text (e.g., #404145) */
 
     --card: 0 0% 100%; /* White cards */
-    --card-foreground: 0 0% 10%; /* Dark text on cards */
+    --card-foreground: 233 3% 26%; /* Dark Gray text on cards */
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
+    --popover-foreground: 233 3% 26%;
 
-    --primary: 197 77% 52%; /* #29ABE2 */
+    --primary: 150 67% 41%; /* Fiverr Green (e.g., #1DBF73) */
     --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 0 0% 96.1%; /* Default light gray, good for secondary elements */
-    --secondary-foreground: 0 0% 9%;
+    --secondary: 220 10% 97%; /* Lighter gray for secondary elements (e.g., #F7F8F9) */
+    --secondary-foreground: 233 3% 20%; /* Darker text for secondary elements */
 
-    --muted: 0 0% 90%; /* Slightly darker than background for muted elements */
-    --muted-foreground: 0 0% 45.1%;
+    --muted: 220 10% 90%; /* Medium Gray for muted elements (e.g., #E4E5E7) */
+    --muted-foreground: 225 4% 50%; /* Darker Medium Gray for muted text (e.g., #7A7D85) */
 
-    --accent: 120 73% 75%; /* #90EE90 */
-    --accent-foreground: 0 0% 10%; /* Dark text on accent */
+    --accent: 150 67% 36%; /* Slightly darker Fiverr Green for accent */
+    --accent-foreground: 0 0% 100%; /* White text on accent */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 85%; /* Border for cards etc. */
-    --input: 0 0% 89.8%; /* Input field background */
-    --ring: 197 77% 52%; /* Primary color for rings */
+    --border: 220 10% 85%; /* Border color (e.g., #D9DADC) */
+    --input: 0 0% 100%; /* White input background */
+    --ring: 150 67% 41%; /* Primary color for rings (Fiverr Green) */
 
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 150 67% 41%; /* Fiverr Green */
+    --chart-2: 150 50% 55%; /* Lighter Green */
+    --chart-3: 220 10% 60%; /* Medium Gray */
+    --chart-4: 43 74% 66%; /* Yellowish (adjust if needed) */
+    --chart-5: 27 87% 67%; /* Orangish (adjust if needed) */
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 197 77% 52%;
+    /* Sidebar variables can also adopt the new theme if a sidebar is used extensively */
+    --sidebar-background: 0 0% 100%; /* White sidebar */
+    --sidebar-foreground: 233 3% 26%; /* Dark text */
+    --sidebar-primary: 150 67% 41%; /* Fiverr Green */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 73% 85%; 
-    --sidebar-accent-foreground: 0 0% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 197 77% 52%;
+    --sidebar-accent: 150 67% 46%; /* Lighter green accent for sidebar */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 10% 90%;
+    --sidebar-ring: 150 67% 41%;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 197 77% 52%; 
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 120 73% 45%; /* Darker accent for dark mode */
-    --accent-foreground: 0 0% 98%; 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 197 77% 52%;
-    
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Dark mode inspired by Fiverr's general modern dark themes, not specifically their site if it lacks one */
+    --background: 240 5% 12%; /* Dark Gray background (e.g., #1C1C1E) */
+    --foreground: 0 0% 90%; /* Light Gray text */
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 197 77% 52%;
+    --card: 240 5% 16%; /* Slightly lighter Dark Gray for cards (e.g., #252528) */
+    --card-foreground: 0 0% 90%;
+
+    --popover: 240 5% 16%;
+    --popover-foreground: 0 0% 90%;
+
+    --primary: 150 67% 41%; /* Fiverr Green (remains prominent) */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 20%; /* Darker Gray for secondary elements (e.g., #2E2E30) */
+    --secondary-foreground: 0 0% 85%;
+
+    --muted: 240 5% 25%; /* Even darker for muted elements */
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 150 67% 46%; /* Slightly brighter green for accent in dark mode */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 50%; /* Adjusted destructive for dark */
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5% 25%; /* Border color for dark mode */
+    --input: 240 5% 20%; /* Input background for dark mode */
+    --ring: 150 67% 41%; /* Fiverr Green for rings */
+    
+    --chart-1: 150 67% 41%;
+    --chart-2: 150 50% 55%;
+    --chart-3: 0 0% 70%;
+    --chart-4: 43 74% 56%;
+    --chart-5: 27 87% 57%;
+
+    --sidebar-background: 240 5% 14%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 150 67% 41%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 73% 35%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 197 77% 52%;
+    --sidebar-accent: 150 67% 46%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 25%;
+    --sidebar-ring: 150 67% 41%;
   }
 }
 

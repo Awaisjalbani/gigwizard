@@ -65,21 +65,21 @@ export default function AuthPage() {
           <div className="inline-flex items-center justify-center p-3 bg-primary rounded-full mb-4 mx-auto">
             <LogIn className="h-8 w-8 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-bold text-primary">Join Fiverr Ace</CardTitle>
+          <CardTitle className="text-3xl font-bold text-primary">Join GigWizard</CardTitle>
           <CardDescription className="text-md text-muted-foreground pt-1">
             Sign in to start creating AI-powered Fiverr gigs.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 p-6">
           {error && (
-            <div className="bg-destructive/10 p-3 rounded-md flex items-center text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              {error}
+            <div className="bg-destructive/10 p-3 rounded-md flex items-center text-sm text-destructive break-words">
+              <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
           <Button
             onClick={handleGoogleSignIn}
-            className="w-full text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-all"
+            className="w-full text-base py-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
             disabled={isLoading}
             variant="outline"
           >

@@ -1,4 +1,3 @@
-
 // src/app/create/page.tsx (Old src/app/page.tsx, now for authenticated users)
 'use client';
 
@@ -360,17 +359,17 @@ export default function CreateGigPage() {
     }
   };
 
-  const handleDownloadImage = (imageDataUri: string | undefined, index: number) => {
+ const handleDownloadImage = (imageDataUri: string | undefined, index: number, type: 'hero' | 'sample') => {
     if (imageDataUri) {
       const link = document.createElement('a');
       link.href = imageDataUri;
       const mimeType = imageDataUri.substring(imageDataUri.indexOf(':') + 1, imageDataUri.indexOf(';'));
       const extension = mimeType.split('/')[1] || 'png';
-      link.download = `fiverr-ace-gig-image-${index + 1}.${extension}`;
+      link.download = `gigwizard-gig-${type}-image-${index + 1}.${extension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast({ title: 'Image Download Started', description: `Downloading fiverr-ace-gig-image-${index + 1}.${extension}` });
+      toast({ title: 'Image Download Started', description: `Downloading gigwizard-gig-${type}-image-${index + 1}.${extension}` });
     } else {
       toast({ variant: 'destructive', title: 'Download Failed', description: 'Image data is not available.' });
     }
@@ -457,7 +456,7 @@ export default function CreateGigPage() {
                   <Sparkles className="h-7 w-7 text-primary-foreground" />
                 </div>
                 <div>
-                    <h1 className="text-3xl font-bold text-primary tracking-tight">Fiverr Ace</h1>
+                    <h1 className="text-3xl font-bold text-primary tracking-tight">GigWizard</h1>
                     <p className="text-md text-muted-foreground">
                     Craft your high-converting Fiverr gig with AI precision.
                     </p>
@@ -639,54 +638,83 @@ export default function CreateGigPage() {
             </GigResultSection>
 
            <GigResultSection title="AI Generated Gig Images" icon={ImageIcon} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
-                <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-8">
-                    {gigData.imageDataUris && gigData.imageDataUris.length > 0 ? (
-                        <div className="w-full space-y-8">
-                            {gigData.imageDataUris.map((uri, index) => (
-                                <div key={`image-container-${index}`} className="flex flex-col items-center w-full">
-                                    <h4 className="text-md font-semibold text-muted-foreground mb-3">
-                                        {index === 0 ? 'Main Hero Image' : `Sample Image ${index + 1}`}
-                                    </h4>
-                                    <div className="w-full max-w-md">
-                                        <NextImage
-                                            src={uri}
-                                            alt={`AI Generated Gig Image ${index + 1}`}
-                                            width={600}
-                                            height={400}
-                                            className="rounded-lg border-2 border-border shadow-lg object-cover"
-                                            data-ai-hint={index === 0 ? "professional service hero" : "professional service sample"}
-                                        />
-                                    </div>
-                                    <Button onClick={() => handleDownloadImage(uri, index)} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download Image {index + 1}
-                                    </Button>
+             <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-8">
+                {gigData.imageDataUris && gigData.imageDataUris.length > 0 ? (
+                    <div className="w-full space-y-10">
+                        {/* Hero Image */}
+                        {gigData.imageDataUris[0] && (
+                            <div className="flex flex-col items-center w-full">
+                                <h4 className="text-md font-semibold text-muted-foreground mb-3">
+                                    Main Hero Image
+                                </h4>
+                                <div className="w-full max-w-2xl mx-auto">
+                                    <NextImage
+                                        src={gigData.imageDataUris[0]}
+                                        alt="AI Generated Gig Hero Image"
+                                        width={1280}
+                                        height={769}
+                                        className="rounded-lg border-2 border-border shadow-lg object-contain w-full h-auto aspect-[1280/769]"
+                                        data-ai-hint="professional service hero"
+                                        priority
+                                    />
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                      <div className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-lg flex items-center justify-center border-2 border-border shadow-md" data-ai-hint="placeholder service">
-                        <ImageIcon className="w-16 h-16 text-muted-foreground/50" />
-                        <p className="ml-3 text-muted-foreground">Images loading or not available...</p>
-                      </div>
-                    )}
-                    {(gigData.imageDataUris && gigData.imageDataUris.length > 0) && (
-                        <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 w-full justify-center">
-                            <Button onClick={handleRecreateImage} variant="outline" className="shadow-md w-full sm:w-auto" disabled={anyActionLoading}>
-                                {isRecreatingImage ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                )}
-                              Recreate All Images
-                            </Button>
-                        </div>
-                    )}
-                    <p className="text-xs text-muted-foreground text-center max-w-md px-4 pt-4">
-                      Fiverr recommended size: 1280x769px. Min: 712x430px. Use these AI images as inspiration or for mockups.
-                    </p>
-                </div>
-            </GigResultSection>
+                                <Button onClick={() => handleDownloadImage(gigData.imageDataUris && gigData.imageDataUris[0], 0, 'hero')} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Download Hero Image
+                                </Button>
+                            </div>
+                        )}
+
+                        {/* Sample Images - Side by Side */}
+                        {gigData.imageDataUris.length > 1 && (
+                            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-6">
+                                {gigData.imageDataUris.slice(1).map((uri, index) => (
+                                    <div key={`sample-image-container-${index}`} className="flex flex-col items-center w-full">
+                                        <h4 className="text-md font-semibold text-muted-foreground mb-3">
+                                            Sample Image {index + 1}
+                                        </h4>
+                                        <div className="w-full">
+                                            <NextImage
+                                                src={uri}
+                                                alt={`AI Generated Gig Sample Image ${index + 1}`}
+                                                width={600}
+                                                height={400}
+                                                className="rounded-lg border-2 border-border shadow-lg object-contain w-full h-auto aspect-[3/2]"
+                                                data-ai-hint="professional service sample"
+                                            />
+                                        </div>
+                                         <Button onClick={() => handleDownloadImage(uri, index, 'sample')} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
+                                            <Download className="mr-2 h-4 w-4" />
+                                            Download Sample {index + 1}
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                  <div className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-lg flex items-center justify-center border-2 border-border shadow-md" data-ai-hint="placeholder service">
+                    <ImageIcon className="w-16 h-16 text-muted-foreground/50" />
+                    <p className="ml-3 text-muted-foreground">Images loading or not available...</p>
+                  </div>
+                )}
+                {(gigData.imageDataUris && gigData.imageDataUris.length > 0) && (
+                    <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-8 w-full justify-center">
+                        <Button onClick={handleRecreateImage} variant="outline" className="shadow-md w-full sm:w-auto" disabled={anyActionLoading}>
+                            {isRecreatingImage ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                            )}
+                          Recreate All Images
+                        </Button>
+                    </div>
+                )}
+                <p className="text-xs text-muted-foreground text-center max-w-md px-4 pt-6">
+                  Fiverr recommended size: 1280x769px. Min: 712x430px. Use these AI images as inspiration or for mockups.
+                </p>
+            </div>
+        </GigResultSection>
 
 
             {/*
@@ -732,10 +760,9 @@ export default function CreateGigPage() {
       <footer className="w-full max-w-5xl mt-16 text-center">
         <Separator className="my-6" />
         <p className="text-md text-muted-foreground">
-          Fiverr Ace &copy; {new Date().getFullYear()}. AI-Powered Gig Creation.
+          GigWizard &copy; {new Date().getFullYear()}. AI-Powered Gig Creation.
         </p>
       </footer>
     </div>
   );
 }
-

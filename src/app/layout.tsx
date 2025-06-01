@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Fiverr Ace',
+  title: 'GigWizard',
   description: 'AI-Powered Fiverr Gig Creator',
 };
 
