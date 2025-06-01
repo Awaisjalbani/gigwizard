@@ -642,58 +642,27 @@ export default function CreateGigPage() {
                 <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-8">
                     {gigData.imageDataUris && gigData.imageDataUris.length > 0 ? (
                         <div className="w-full space-y-8">
-                            {/* Hero Image */}
-                            {gigData.imageDataUris[0] && (
-                                <div className="flex flex-col items-center w-full">
+                            {gigData.imageDataUris.map((uri, index) => (
+                                <div key={`image-container-${index}`} className="flex flex-col items-center w-full">
                                     <h4 className="text-md font-semibold text-muted-foreground mb-3">
-                                        Main Hero Image
+                                        {index === 0 ? 'Main Hero Image' : `Sample Image ${index + 1}`}
                                     </h4>
-                                    <div className="w-full max-w-2xl mx-auto">
+                                    <div className="w-full max-w-md">
                                         <NextImage
-                                            src={gigData.imageDataUris[0]}
-                                            alt="AI Generated Gig Image 1 (Hero)"
+                                            src={uri}
+                                            alt={`AI Generated Gig Image ${index + 1}`}
                                             width={600}
                                             height={400}
-                                            className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
-                                            data-ai-hint="professional service hero"
-                                            priority
+                                            className="rounded-lg border-2 border-border shadow-lg object-cover"
+                                            data-ai-hint={index === 0 ? "professional service hero" : "professional service sample"}
                                         />
                                     </div>
-                                    <Button onClick={() => handleDownloadImage(gigData.imageDataUris![0], 0)} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
+                                    <Button onClick={() => handleDownloadImage(uri, index)} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
                                         <Download className="mr-2 h-4 w-4" />
-                                        Download Hero Image
+                                        Download Image {index + 1}
                                     </Button>
                                 </div>
-                            )}
-
-                            {/* Sample Images Container */}
-                            {gigData.imageDataUris.length > 1 && (
-                                <div className="w-full">
-                                    <h4 className="text-md font-semibold text-muted-foreground mb-3 text-center">
-                                        Sample Images
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                                        {gigData.imageDataUris.slice(1).map((uri, index) => (
-                                            <div key={`sample-${index}`} className="flex flex-col items-center">
-                                                <div className="w-full">
-                                                    <NextImage
-                                                        src={uri}
-                                                        alt={`AI Generated Gig Sample Image ${index + 1}`}
-                                                        width={450}
-                                                        height={300}
-                                                        className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
-                                                        data-ai-hint="professional service sample"
-                                                    />
-                                                </div>
-                                                <Button onClick={() => handleDownloadImage(uri, index + 1)} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
-                                                    <Download className="mr-2 h-4 w-4" />
-                                                    Download Sample {index + 1}
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            ))}
                         </div>
                     ) : (
                       <div className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-lg flex items-center justify-center border-2 border-border shadow-md" data-ai-hint="placeholder service">
@@ -701,7 +670,6 @@ export default function CreateGigPage() {
                         <p className="ml-3 text-muted-foreground">Images loading or not available...</p>
                       </div>
                     )}
-                    {/* Recreate All Images Button */}
                     {(gigData.imageDataUris && gigData.imageDataUris.length > 0) && (
                         <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 w-full justify-center">
                             <Button onClick={handleRecreateImage} variant="outline" className="shadow-md w-full sm:w-auto" disabled={anyActionLoading}>
