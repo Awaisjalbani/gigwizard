@@ -138,7 +138,7 @@ export const GenerateGigDescriptionInputSchema = z.object({
   gigTitle: z.string().describe('The title of the Fiverr gig.'),
   category: z.string().describe('The suggested category for the gig.'),
   subcategory: z.string().describe('The suggested subcategory for the gig.'),
-  topPerformingGigInsights: z.string().describe('Simulated insights from analyzing top-performing gigs (e.g., common features, successful copywriting angles).'),
+  topPerformingGigInsights: z.string().describe('Simulated insights from analyzing top-performing gigs (e.g., common features, successful copywriting angles). This might come from a market analysis step.'),
   packageDetails: GeneratePackageDetailsOutputSchema.describe('The generated package details to inform the description (primarily for FAQ context now).'),
 });
 export type GenerateGigDescriptionInput = z.infer<typeof GenerateGigDescriptionInputSchema>;
@@ -182,6 +182,9 @@ export type GenerateGigImageOutput = z.infer<typeof GenerateGigImageOutputSchema
 // --- Central Title, Description, Image Prompt Schemas ---
 export const GenerateTitleDescImgPromptInputSchema = z.object({
   mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
+  // Optional strategic context from market analysis
+  strategicRecommendations: z.array(z.string()).optional().describe('Optional strategic recommendations from market analysis to guide content generation.'),
+  overallMarketSummary: z.string().optional().describe('Optional market summary from analysis to provide context.'),
 });
 export type GenerateTitleDescImgPromptInput = z.infer<typeof GenerateTitleDescImgPromptInputSchema>;
 
@@ -203,3 +206,29 @@ export const RegenerateGigTitleOutputSchema = z.object({
   newGigTitle: z.string().describe('The newly regenerated, different gig title.'),
 });
 export type RegenerateGigTitleOutput = z.infer<typeof RegenerateGigTitleOutputSchema>;
+
+// --- Market Analysis & Strategy Schemas ---
+export const HypotheticalCompetitorProfileSchema = z.object({
+    gigTitle: z.string().describe("A compelling, unique title a hypothetical top competitor might use. Must be varied each generation."),
+    primaryOffering: z.string().describe("The core service this hypothetical competitor seems to excel at. Must be varied each generation."),
+    keySellingPoints: z.array(z.string()).min(2).max(3).describe("2-3 unique bullet points on what makes this competitor attractive. Must be varied each generation."),
+    estimatedPriceRange: z.string().describe("A general, varied idea of their pricing (e.g., 'Basic: $X-$Y, Premium: $A-$B'). Must be varied each generation."),
+    targetAudienceHint: z.string().describe("Who they are likely targeting (e.g., 'Startups needing speed,' 'Enterprises seeking quality'). Must be varied each generation.")
+});
+export type HypotheticalCompetitorProfile = z.infer<typeof HypotheticalCompetitorProfileSchema>;
+
+export const AnalyzeMarketStrategyInputSchema = z.object({
+  mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
+  userGigConcept: z.string().optional().describe('An optional brief description of the user\'s gig idea or concept for more tailored advice.'),
+});
+export type AnalyzeMarketStrategyInput = z.infer<typeof AnalyzeMarketStrategyInputSchema>;
+
+export const AnalyzeMarketStrategyOutputSchema = z.object({
+  simulatedCompetitorProfiles: z.array(HypotheticalCompetitorProfileSchema).min(2).max(4).describe('An array of 2 to 4 distinct profiles of hypothetical top-performing competitors. Each profile and its details must be unique and substantially varied per generation.'),
+  observedSuccessFactors: z.array(z.string()).min(3).max(4).describe('A list of 3-4 common success factors or patterns observed in the (simulated) top gigs for this niche. Must be unique and varied per generation.'),
+  strategicRecommendationsForUser: z.array(z.string()).min(3).max(5).describe('3-5 actionable strategic recommendations tailored to the user\'s gig. Must be unique and varied per generation.'),
+  overallMarketSummary: z.string().describe('A brief summary (2-4 sentences) of the competitive landscape and opportunity for the main keyword. Must be unique and varied per generation.'),
+  outreachTip: z.string().describe('A concise, unique, and actionable tip for outreach or initial client communication related to this gig type. Must be varied per generation.'),
+  winningApproachSummary: z.string().describe('A unique summary of a winning approach or core value proposition the user could adopt for their gig. Must be varied per generation.'),
+});
+export type AnalyzeMarketStrategyOutput = z.infer<typeof AnalyzeMarketStrategyOutputSchema>;
