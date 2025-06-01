@@ -938,5 +938,3 @@ export default function CreateGigPage() {
     </div>
   );
 }
-
-```

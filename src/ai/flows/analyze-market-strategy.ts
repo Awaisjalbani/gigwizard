@@ -38,11 +38,11 @@ Your task is to perform a simulated analysis as if you've deeply reviewed the TO
 1.  **Simulated Competitor Profiles (Array of 2 to 4 profiles)**:
     *   Create distinct profiles for 2 to 4 HYPOTHETICAL successful competitors.
     *   For each competitor, ensure ALL details (title, offering, selling points, price range, audience) are plausible, distinct from other profiles in this response, and DIFFERENT from any previous generation for this keyword.
-    *   `gigTitle`: A compelling and unique title they might use.
-    *   `primaryOffering`: What is the core service they seem to excel at?
-    *   `keySellingPoints`: 2-3 unique bullet points on what makes them attractive.
-    *   `estimatedPriceRange`: A general, varied idea of their pricing structure (e.g., "Basic: $X, Pro: $Y", or "From $Z").
-    *   `targetAudienceHint`: Who are they likely targeting? (e.g., "Indie game devs," "SaaS companies").
+    *   \\\`gigTitle\\\`: A compelling and unique title they might use.
+    *   \\\`primaryOffering\\\`: What is the core service they seem to excel at?
+    *   \\\`keySellingPoints\\\`: 2-3 unique bullet points on what makes them attractive.
+    *   \\\`estimatedPriceRange\\\`: A general, varied idea of their pricing structure (e.g., "Basic: $X, Pro: $Y", or "From $Z").
+    *   \\\`targetAudienceHint\\\`: Who are they likely targeting? (e.g., "Indie game devs," "SaaS companies").
 
 2.  **Observed Success Factors (Array of 3-4 strings)**:
     *   Based on your simulated research, list 3-4 common factors or patterns that contribute to success for gigs in the "{{mainKeyword}}" niche. These factors should be fresh and insightful each time.
