@@ -51,6 +51,7 @@ import {
   Volume2,
   Mic,
   Captions,
+  CheckCircle, // Added for success toasts
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -106,6 +107,7 @@ export default function CreateGigPage() {
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [currentPreviewSceneIndex, setCurrentPreviewSceneIndex] = useState(0);
   const sceneTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
 
   useEffect(() => {
@@ -180,7 +182,12 @@ export default function CreateGigPage() {
         } else {
             setMarketAnalysisData(result);
             toast({
-                title: 'Market Analysis Complete!',
+                title: (
+                  <div className="flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+                    Market Analysis Complete!
+                  </div>
+                ),
                 description: 'Strategic insights are ready for your review.',
             });
         }
@@ -250,7 +257,12 @@ export default function CreateGigPage() {
         setGigData(result);
         setCurrentMainKeyword(data.mainKeyword);
         toast({
-          title: 'Gig Generation Complete!',
+          title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+              Gig Generation Complete!
+            </div>
+          ),
           description: 'Your GigWizard components are ready.',
         });
       }
@@ -298,7 +310,12 @@ export default function CreateGigPage() {
       if (Array.isArray(newTagsResult)) {
         setGigData(prevData => ({ ...prevData!, searchTags: newTagsResult, error: undefined }));
         toast({
-          title: 'Search Tags Refreshed!',
+          title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+              Search Tags Refreshed!
+            </div>
+          ),
           description: 'A new set of optimized tags has been generated.',
         });
       } else if (newTagsResult.error) {
@@ -339,7 +356,12 @@ export default function CreateGigPage() {
             setGigData(prevData => ({ ...prevData!, imageDataUris: result.imageDataUris, error: undefined }));
         }
         toast({
-          title: 'Images Recreated!',
+          title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+              Images Recreated!
+            </div>
+          ),
           description: 'New gig images have been generated.',
         });
         generatedUris = result.imageDataUris;
@@ -381,7 +403,12 @@ export default function CreateGigPage() {
       if (result.newGigTitle) {
         setGigData(prevData => ({ ...prevData!, title: result.newGigTitle, error: undefined }));
         toast({
-          title: 'Title Regenerated!',
+          title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+              Title Regenerated!
+            </div>
+          ),
           description: 'A new gig title has been crafted.',
         });
       } else if (result.error) {
@@ -456,7 +483,12 @@ export default function CreateGigPage() {
         setIntroVideoAssets(result);
         setGigData(prev => ({...prev!, introVideoAssets: result}));
         toast({
-          title: 'Intro Video Blueprint Generated!',
+          title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+              Intro Video Blueprint Generated!
+            </div>
+          ),
           description: 'Attempting to generate scene images automatically...',
         });
 
@@ -469,7 +501,12 @@ export default function CreateGigPage() {
 
         if (allSucceeded) {
           toast({
-            title: 'All Scene Images Generated!',
+            title: (
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+                All Scene Images Generated!
+              </div>
+            ),
             description: 'Visuals for your video blueprint are ready.',
           });
         } else if (anySucceeded) {
@@ -510,65 +547,152 @@ export default function CreateGigPage() {
         clearTimeout(sceneTimerRef.current);
       }
 
-      if (currentPreviewSceneIndex < numScenes - 1) {
+      if (currentPreviewSceneIndex < numScenes -1) { // Only set timer if not the last scene to allow speech to finish
         sceneTimerRef.current = setTimeout(() => {
           setCurrentPreviewSceneIndex(prevIndex => prevIndex + 1);
         }, durationPerSceneMs);
       } else {
+        // For the last scene, let speech finish or wait a bit longer
          sceneTimerRef.current = setTimeout(() => {
-            setIsPlayingPreview(false);
-            if ('speechSynthesis' in window) {
-              window.speechSynthesis.cancel();
-            }
-        }, durationPerSceneMs);
+            setIsPlayingPreview(false); // This will trigger speech cancellation in the other useEffect
+        }, durationPerSceneMs + 2000); // Add extra time for speech
       }
-    } else {
+    } else if (!isPlayingPreview) { // If not playing, ensure timer is cleared and speech is cancelled
        if (sceneTimerRef.current) {
         clearTimeout(sceneTimerRef.current);
       }
-       if ('speechSynthesis' in window && !isPlayingPreview) {
+       if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+         console.log("Cancelling speech because isPlayingPreview is false or modal closed.");
          window.speechSynthesis.cancel();
        }
     }
-    return () => {
+
+    return () => { // Cleanup function
       if (sceneTimerRef.current) {
         clearTimeout(sceneTimerRef.current);
       }
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+         // Don't cancel here if it's just currentPreviewSceneIndex changing
+         // Cancellation should be tied to isPlayingPreview becoming false or modal closing
       }
     };
   }, [isPlayingPreview, currentPreviewSceneIndex, isPreviewModalOpen, introVideoAssets]);
+
+
+  // Effect to cancel speech when isPlayingPreview becomes false
+  useEffect(() => {
+    if (!isPlayingPreview && typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+      console.log("useEffect: isPlayingPreview became false, cancelling speech.");
+      window.speechSynthesis.cancel();
+    }
+  }, [isPlayingPreview]);
+
 
   const startPreview = () => {
     if (!introVideoAssets || !introVideoAssets.script) return;
 
     setCurrentPreviewSceneIndex(0);
     setIsPlayingPreview(true);
-    setIsPreviewModalOpen(true);
+    setIsPreviewModalOpen(true); // Open modal first
 
-    if ('speechSynthesis' in window && introVideoAssets.script) {
-      window.speechSynthesis.cancel(); // Cancel any previous speech
-      const utterance = new SpeechSynthesisUtterance(introVideoAssets.script);
-      // You might want to select a voice if available and desired
-      // const voices = window.speechSynthesis.getVoices();
-      // if (voices.length > 0) utterance.voice = voices[0]; 
-      window.speechSynthesis.speak(utterance);
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window && introVideoAssets.script) {
+        const speak = () => {
+            if (!isPlayingPreview) return; // Check if preview was stopped before voices loaded/speak called
+            
+            window.speechSynthesis.cancel(); // Cancel any previous speech
+            const utterance = new SpeechSynthesisUtterance(introVideoAssets.script);
+            utteranceRef.current = utterance; // Store utterance
+
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                const englishVoice = voices.find(voice => voice.lang.startsWith('en') && voice.localService);
+                utterance.voice = englishVoice || voices.find(voice => voice.localService) || voices[0];
+                if (utterance.voice) console.log('Using voice:', utterance.voice.name, utterance.voice.lang);
+                else console.warn('Could not find a suitable voice, using default.');
+            } else {
+                console.warn('No speech synthesis voices available at speak time.');
+            }
+
+            utterance.onend = () => {
+                console.log('Speech finished.');
+                // If speech ends and it was the last scene, we can stop the preview
+                if (introVideoAssets && currentPreviewSceneIndex >= introVideoAssets.visualPrompts.length -1) {
+                    setIsPlayingPreview(false);
+                }
+            };
+            utterance.onerror = (event) => {
+                console.error('SpeechSynthesisUtterance.onerror:', event);
+                toast({
+                    variant: "destructive",
+                    title: "Voiceover Error",
+                    description: `Could not play voiceover: ${event.error}. Please ensure your browser has voice services enabled.`,
+                });
+                setIsPlayingPreview(false); // Stop preview on error
+            };
+            
+            // Timeout to ensure modal is rendered and user attention is on it before speech starts
+            setTimeout(() => {
+              if (isPlayingPreview && isPreviewModalOpen) { // Double check if still playing
+                window.speechSynthesis.speak(utterance);
+                console.log("Attempting to speak script:", introVideoAssets.script.substring(0,50) + "...");
+              } else {
+                console.log("Preview stopped before speech could start.");
+              }
+            }, 100);
+
+
+        };
+
+        if (window.speechSynthesis.getVoices().length === 0) {
+            console.log("Voices not loaded yet, waiting for 'voiceschanged' event.");
+            const voiceChangedHandler = () => {
+                console.log("Voices loaded via onvoiceschanged.");
+                if (isPlayingPreview) speak(); // Check if still playing before speaking
+                window.speechSynthesis.onvoiceschanged = null; 
+            };
+            window.speechSynthesis.onvoiceschanged = voiceChangedHandler;
+            // Fallback if onvoiceschanged doesn't fire reliably in some browsers
+            setTimeout(() => {
+                 if (window.speechSynthesis.getVoices().length === 0 && isPlayingPreview) {
+                    console.log("Voices still not loaded after timeout, attempting to speak anyway or warning user.");
+                    // speak(); // Or show a warning
+                 } else if (isPlayingPreview && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+                    // If voices loaded but speak wasn't called by event, try now
+                    // speak();
+                 }
+                 // Detach listener if it hasn't fired
+                 if (window.speechSynthesis.onvoiceschanged === voiceChangedHandler) {
+                    window.speechSynthesis.onvoiceschanged = null;
+                 }
+            }, 1000);
+        } else {
+            console.log("Voices already available.");
+            speak();
+        }
     } else {
-      toast({
-        variant: "default",
-        title: "Text-to-Speech Not Available",
-        description: "Your browser does not support speech synthesis, or no script is available.",
-      });
+        toast({
+            variant: "default",
+            title: "Text-to-Speech Not Available",
+            description: "Your browser does not support speech synthesis, or no script is available.",
+        });
     }
-  };
+};
+
 
   const closePreviewModal = () => {
-    setIsPlayingPreview(false);
+    console.log("closePreviewModal called");
+    setIsPlayingPreview(false); // This should trigger the useEffect to cancel speech.
     setIsPreviewModalOpen(false);
     setCurrentPreviewSceneIndex(0); 
-    if ('speechSynthesis' in window) {
+    // Explicitly cancel speech here as well, just in case.
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
+        console.log("Speech explicitly cancelled in closePreviewModal.");
+    }
+    if (utteranceRef.current) {
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
+        utteranceRef.current = null;
     }
   };
 
@@ -629,7 +753,14 @@ export default function CreateGigPage() {
     setIsLoading(true);
     try {
       await signOut();
-      toast({ title: "Signed Out", description: "You have been successfully signed out." });
+      toast({ 
+        title: (
+            <div className="flex items-center">
+              <CheckCircle className="h-5 w-5 mr-2 text-primary" />
+              Signed Out
+            </div>
+          ), 
+        description: "You have been successfully signed out." });
       setCurrentUser(null);
       router.push('/auth');
     } catch (error) {
@@ -740,7 +871,7 @@ export default function CreateGigPage() {
         }
         .preview-image-container {
           width: 100%;
-          max-width: 640px; 
+          /* max-width: 640px; removed to allow dialog to control width */
           aspect-ratio: 16 / 9;
           background-color: hsl(var(--muted));
           border-radius: 0.5rem;
@@ -761,7 +892,7 @@ export default function CreateGigPage() {
           color: hsl(var(--foreground));
           font-size: 0.875rem; /* text-sm */
           line-height: 1.5;
-          max-height: 100px; /* Limit height */
+          max-height: 120px; /* Increased height slightly */
           overflow-y: auto;
           padding: 0.75rem 1rem; /* p-3 p-4 */
           white-space: pre-wrap; /* To respect newlines in script */
@@ -886,7 +1017,7 @@ export default function CreateGigPage() {
                 <Brain className="mr-3 h-7 w-7" /> Market Analysis & Strategic Insights
             </h2>
             
-            <GigResultSection title="Simulated Top Competitor Profiles" icon={Users} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Simulated Top Competitor Profiles" icon={Users} contentClassName="p-4 sm:p-5">
                 <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
                     {marketAnalysisData.simulatedCompetitorProfiles.map((profile, index) => (
                         <Card key={index} className="flex flex-col shadow-md hover:shadow-lg transition-all duration-300 bg-card transform hover:-translate-y-1">
@@ -909,7 +1040,7 @@ export default function CreateGigPage() {
                 </div>
             </GigResultSection>
 
-            <GigResultSection title="Observed Success Factors" icon={TrendingUp} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Observed Success Factors" icon={TrendingUp} contentClassName="p-4 sm:p-5">
                 <ul className="list-disc list-inside space-y-2 p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">
                     {marketAnalysisData.observedSuccessFactors.map((factor, index) => (
                         <li key={index}>{factor}</li>
@@ -917,7 +1048,7 @@ export default function CreateGigPage() {
                 </ul>
             </GigResultSection>
 
-            <GigResultSection title="Strategic Recommendations for You" icon={Target} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Strategic Recommendations for You" icon={Target} contentClassName="p-4 sm:p-5">
                 <ul className="list-disc list-inside space-y-2 p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">
                     {marketAnalysisData.strategicRecommendationsForUser.map((rec, index) => (
                         <li key={index}>{rec}</li>
@@ -925,15 +1056,15 @@ export default function CreateGigPage() {
                 </ul>
             </GigResultSection>
 
-            <GigResultSection title="Overall Market Summary" icon={ClipboardList} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Overall Market Summary" icon={ClipboardList} contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">{marketAnalysisData.overallMarketSummary}</p>
             </GigResultSection>
 
-            <GigResultSection title="Outreach Tip" icon={Handshake} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Outreach Tip" icon={Handshake} contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">{marketAnalysisData.outreachTip}</p>
             </GigResultSection>
 
-            <GigResultSection title="Winning Approach Summary" icon={Award} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Winning Approach Summary" icon={Award} contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">{marketAnalysisData.winningApproachSummary}</p>
             </GigResultSection>
             <Separator />
@@ -961,7 +1092,7 @@ export default function CreateGigPage() {
              <h2 className="text-2xl font-bold text-center text-primary flex items-center justify-center">
                 <Sparkles className="mr-3 h-7 w-7" /> Your Generated Gig Components
             </h2>
-            <GigResultSection title="Optimized Gig Title" icon={Lightbulb} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Optimized Gig Title" icon={Lightbulb} contentClassName="p-4 sm:p-5">
               <div className="flex items-center justify-between p-5 bg-secondary rounded-lg shadow-inner">
                 <p className="text-xl font-semibold text-foreground flex-grow">{gigData.title}</p>
                 <Button
@@ -982,15 +1113,15 @@ export default function CreateGigPage() {
             </GigResultSection>
 
             <div className="grid md:grid-cols-2 gap-8">
-              <GigResultSection title="Suggested Category" icon={FolderKanban} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+              <GigResultSection title="Suggested Category" icon={FolderKanban} contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-foreground">{gigData.category}</p>
               </GigResultSection>
-              <GigResultSection title="Suggested Subcategory" icon={BookCopy} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+              <GigResultSection title="Suggested Subcategory" icon={BookCopy} contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-foreground">{gigData.subcategory}</p>
               </GigResultSection>
             </div>
 
-            <GigResultSection title="Strategic Search Tags & Analytics" icon={TagsIcon} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Strategic Search Tags & Analytics" icon={TagsIcon} contentClassName="p-4 sm:p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                 {gigData.searchTags?.map((tag) => (
                   <Card key={tag.term} className="bg-secondary shadow-inner transition-all duration-300 hover:scale-105 hover:shadow-md">
@@ -1032,7 +1163,7 @@ export default function CreateGigPage() {
               </div>
             </GigResultSection>
 
-            <GigResultSection title="High-Converting Pricing Packages" icon={BadgeDollarSign} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="High-Converting Pricing Packages" icon={BadgeDollarSign} contentClassName="p-4 sm:p-5">
               <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
                 {gigData.pricing?.basic && renderPricingPackage(gigData.pricing.basic, "Basic")}
                 {gigData.pricing?.standard && renderPricingPackage(gigData.pricing.standard, "Standard")}
@@ -1040,14 +1171,14 @@ export default function CreateGigPage() {
               </div>
             </GigResultSection>
 
-            <GigResultSection title="Compelling Gig Description" icon={FileText} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Compelling Gig Description" icon={FileText} contentClassName="p-4 sm:p-5">
                 <div
                     className="p-5 bg-secondary rounded-lg shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[450px] overflow-y-auto text-foreground"
                     dangerouslySetInnerHTML={{ __html: formatDescription(gigData.description) }}
                 />
             </GigResultSection>
 
-            <GigResultSection title="Frequently Asked Questions (FAQs)" icon={HelpCircle} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Frequently Asked Questions (FAQs)" icon={HelpCircle} contentClassName="p-4 sm:p-5">
               <Accordion type="single" collapsible className="w-full space-y-3">
                 {gigData.faqs?.map((faq, index) => (
                   <AccordionItem key={index} value={`item-${index}`} className="bg-secondary rounded-lg shadow-inner border-border overflow-hidden">
@@ -1062,7 +1193,7 @@ export default function CreateGigPage() {
               </Accordion>
             </GigResultSection>
 
-            <GigResultSection title="Essential Client Requirements" icon={CheckSquare} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="Essential Client Requirements" icon={CheckSquare} contentClassName="p-4 sm:p-5">
               <ul className="list-disc list-inside space-y-2.5 p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">
                 {gigData.requirements?.map((req, index) => (
                   <li key={index}>{req}</li>
@@ -1070,7 +1201,7 @@ export default function CreateGigPage() {
               </ul>
             </GigResultSection>
 
-           <GigResultSection title="AI Generated Gig Images" icon={ImageIcon} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+           <GigResultSection title="AI Generated Gig Images" icon={ImageIcon} contentClassName="p-4 sm:p-5">
              <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-8">
                 {gigData.imageDataUris && gigData.imageDataUris.length > 0 ? (
                     <div className="w-full space-y-10">
@@ -1143,7 +1274,7 @@ export default function CreateGigPage() {
         </GigResultSection>
 
             {gigData && !gigData.error && !isLoading && (
-            <GigResultSection title="AI-Generated Intro Video Blueprint" icon={Video} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+            <GigResultSection title="AI-Generated Intro Video Blueprint" icon={Video} contentClassName="p-4 sm:p-5">
                 {!introVideoAssets && !isGeneratingIntroVideoAssets && !introVideoAssetsError && (
                 <div className="text-center py-4">
                     <Button onClick={handleGenerateIntroVideoAssets} disabled={anyActionLoading}>
@@ -1275,14 +1406,16 @@ export default function CreateGigPage() {
             
             {introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
               <Dialog open={isPreviewModalOpen} onOpenChange={(isOpen) => { if (!isOpen) closePreviewModal(); else setIsPreviewModalOpen(true);}}>
-                <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl p-0 overflow-hidden flex flex-col h-[90vh] max-h-[700px]">
+                <DialogContent className="sm:max-w-4xl md:max-w-5xl lg:max-w-6xl p-0 overflow-hidden flex flex-col h-[95vh] max-h-[900px]">
                   <DialogHeader className="p-4 border-b flex-shrink-0">
                     <div className="flex justify-between items-center">
                         <DialogTitle className="text-lg flex items-center">
                             <PlayCircle className="w-5 h-5 mr-2 text-primary" />
                             Intro Video Animated Preview
                         </DialogTitle>
-                        <DialogClose onClick={closePreviewModal} />
+                        <DialogClose onClick={closePreviewModal} asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full"><X className="h-4 w-4"/></Button>
+                        </DialogClose>
                     </div>
                     <DialogDescription className="text-xs flex items-center gap-4 pt-1">
                         <span className="flex items-center"><Mic className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" /> Browser Voiceover</span>
@@ -1339,11 +1472,7 @@ export default function CreateGigPage() {
                     setCurrentMainKeyword(null);
                     setUserGigConcept('');
                     reset({ mainKeyword: '', userGigConcept: '' });
-                    setIsPreviewModalOpen(false);
-                    setIsPlayingPreview(false);
-                    setCurrentPreviewSceneIndex(0);
-                    if (sceneTimerRef.current) clearTimeout(sceneTimerRef.current);
-                    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+                    closePreviewModal(); // Ensures all preview states are reset
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"

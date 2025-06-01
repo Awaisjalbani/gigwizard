@@ -1,3 +1,4 @@
+
 "use client"
 
 // Inspired by react-hot-toast library
@@ -13,8 +14,8 @@ const TOAST_REMOVE_DELAY = 1000000
 
 type ToasterToast = ToastProps & {
   id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
+  title?: React.ReactNode // Changed from string to React.ReactNode
+  description?: React.ReactNode // Changed from string to React.ReactNode
   action?: ToastActionElement
 }
 
