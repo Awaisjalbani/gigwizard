@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Fiverr Ace (GigWizard)
 
 This is a Next.js application built with Firebase Studio, designed to help create optimized Fiverr gigs using AI.
@@ -94,3 +95,6 @@ The `apphosting.yaml` file in this project is for deployment to Firebase App Hos
 -   Copy `.env.example` to `.env` and fill in your `GEMINI_API_KEY` for local AI feature testing.
 -   For Firebase Authentication to work locally, `localhost` is usually authorized by default in new Firebase projects. If you have issues, ensure `localhost` is in the "Authorized domains" list in your Firebase Authentication settings.
 ```
+=======
+# GigWizard -- AI Powered GIG Creation 
+>>>>>>> 1a1d33f3a62b7c61b37ba03a184cb23166c7e317
