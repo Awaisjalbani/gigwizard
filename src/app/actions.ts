@@ -154,7 +154,7 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       imagePrompt: imagePrompt,
     };
   } catch (e: any) {
-    console.error("Error generating full gig data:", e);
+    console.error("Error generating full gig data:", e); // Full error logged here
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to generate gig data due to an unknown error.';
 
     if (e.message) {
@@ -162,7 +162,7 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
         if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters")) {
             errorMessage = "Image generation failed. The AI might be unable to create an image for this specific request, or safety filters might have blocked it. Please try a different keyword or check model capabilities.";
         } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
-            errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + e.message + ")";
+            errorMessage = "The AI service is currently experiencing high load or is temporarily unavailable. This is usually a temporary issue. Please try again in a few moments. Full error details have been logged.";
         } else if (lowerMessage.includes("auth/unauthorized-domain") || lowerMessage.includes("firebase auth error")) {
           errorMessage = e.message; // Use the detailed message from firebase.ts
         }
@@ -182,10 +182,10 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
     }
     return result.searchTags;
   } catch (e: any) {
-    console.error("Error refreshing search tags:", e);
+    console.error("Error refreshing search tags:", e); // Full error logged here
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to refresh search tags due to an unknown error.';
      if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
-        errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments. (Details: " + e.message + ")";
+        errorMessage = "The AI service for search tag optimization is currently experiencing high load or is temporarily unavailable. Please try again in a few moments. Full error details have been logged.";
     }
     return { error: errorMessage };
   }
@@ -205,14 +205,14 @@ export async function regenerateGigImageAction(
     }
     return result;
   } catch (e: any) {
-    console.error("Error regenerating gig image:", e);
+    console.error("Error regenerating gig image:", e); // Full error logged here
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate image due to an unknown error.';
     if (e.message) {
         const lowerMessage = e.message.toLowerCase();
         if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters")) {
             errorMessage = "Image regeneration failed. The AI might be unable to create an image for this specific prompt, or safety filters might have blocked it. Please try a different approach or check model capabilities.";
         } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
-            errorMessage = "The AI service is currently overloaded or unavailable for image generation. Please try again in a few moments. (Details: " + e.message + ")";
+            errorMessage = "The AI service for image generation is currently experiencing high load or is temporarily unavailable. Please try again in a few moments. Full error details have been logged.";
         }
     }
     return { error: errorMessage };
@@ -232,10 +232,10 @@ export async function regenerateTitleAction(
     }
     return result;
   } catch (e: any) {
-    console.error("Error regenerating gig title:", e);
+    console.error("Error regenerating gig title:", e); // Full error logged here
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate title due to an unknown error.';
     if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
-        errorMessage = "The AI service is currently overloaded or unavailable for title regeneration. Please try again in a few moments. (Details: " + e.message + ")";
+        errorMessage = "The AI service for title regeneration is currently experiencing high load or is temporarily unavailable. Please try again in a few moments. Full error details have been logged.";
     }
     return { error: errorMessage };
   }
