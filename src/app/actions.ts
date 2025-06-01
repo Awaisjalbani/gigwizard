@@ -10,6 +10,7 @@ import { generateGigDescription as generateFaqsOnly } from '@/ai/flows/generate-
 import { suggestRequirements } from '@/ai/flows/suggest-requirements';
 import { generateGigImage } from '@/ai/flows/generate-gig-image';
 import { regenerateGigTitle } from '@/ai/flows/regenerate-gig-title';
+import { analyzeMarketAndSuggestStrategy } from '@/ai/flows/analyze-market-strategy';
 
 
 import type {
@@ -21,7 +22,10 @@ import type {
     GenerateGigImageFromPromptInput,
     GenerateGigImageOutput,
     RegenerateGigTitleInput,
-    RegenerateGigTitleOutput
+    RegenerateGigTitleOutput,
+    AnalyzeMarketStrategyInput,
+    AnalyzeMarketStrategyOutput,
+    GenerateTitleDescImgPromptInput
 } from '@/ai/schemas/gig-generation-schemas';
 
 
@@ -38,9 +42,10 @@ export interface GigData {
   description?: string;
   faqs?: FAQ[];
   requirements?: string[];
-  imageDataUris?: string[]; // Changed from imageDataUri to imageDataUris (array)
-  imagePrompts?: string[]; // Changed from imagePrompt to imagePrompts (array)
+  imageDataUris?: string[];
+  imagePrompts?: string[];
   error?: string;
+  marketAnalysis?: AnalyzeMarketStrategyOutput;
 }
 
 const getSimulatedTopGigInsights = (keyword: string, category: string, subcategory: string): string => {
@@ -48,7 +53,7 @@ const getSimulatedTopGigInsights = (keyword: string, category: string, subcatego
 };
 
 
-export async function generateFullGig(mainKeyword: string): Promise<GigData> {
+export async function generateFullGig(mainKeyword: string, marketAnalysis?: AnalyzeMarketStrategyOutput): Promise<GigData> {
   if (!mainKeyword || mainKeyword.trim() === '') {
     return { error: 'Main keyword cannot be empty.' };
   }
@@ -57,40 +62,37 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
   const incrementProgress = (amount: number) => { progress += amount; /* console.log(`Progress: ${progress}%`); */ };
 
   try {
-    // Step 1: Generate Title, Description, and Image Prompts (Array)
-    const titleDescImgPromptResult = await generateTitleDescriptionImagePrompt({ mainKeyword });
-    incrementProgress(15); // Estimate: 15%
-    const { gigTitle, gigDescription, imagePrompts } = titleDescImgPromptResult; // imagePrompts is now an array
+    const titleDescImgPromptInput: GenerateTitleDescImgPromptInput = {
+        mainKeyword,
+        ...(marketAnalysis?.strategicRecommendationsForUser && { strategicRecommendations: marketAnalysis.strategicRecommendationsForUser }),
+        ...(marketAnalysis?.overallMarketSummary && { overallMarketSummary: marketAnalysis.overallMarketSummary }),
+    };
+
+    const titleDescImgPromptResult = await generateTitleDescriptionImagePrompt(titleDescImgPromptInput);
+    incrementProgress(15);
+    const { gigTitle, gigDescription, imagePrompts } = titleDescImgPromptResult;
     if (!gigTitle || !gigDescription || !imagePrompts || imagePrompts.length !== 3) {
       throw new Error("Failed to generate core gig content (title, description, or 3 image prompts).");
     }
 
-    // Step 2: Suggest Category & Subcategory
     const categoryResult = await suggestGigCategory({ mainKeyword, gigTitle });
-    incrementProgress(10); // Estimate: +10% = 25%
+    incrementProgress(10);
     const { category, subcategory } = categoryResult;
     if (!category || !subcategory) throw new Error("Failed to suggest category/subcategory.");
 
-    // Step 3: Optimize Search Tags
     const tagsPromise = optimizeSearchTags({ mainKeyword, gigTitle, category, subcategory });
-
-    // Step 4: Suggest Package Pricing
     const pricingSuggestionPromise = suggestPackagePricing({ keyword: mainKeyword, category, subcategory });
+    const imagesPromise = generateGigImage({ imagePrompts });
 
-    // Step 5: Generate Gig Images (plural, takes array of prompts)
-    const imagesPromise = generateGigImage({ imagePrompts }); // Pass the array of prompts
-
-    // Awaiting results needed for subsequent dependent calls
     const [tagsResult, pricingSuggestionResult] = await Promise.all([
-        tagsPromise.then(res => { incrementProgress(15); return res; }), // +15% = 40%
-        pricingSuggestionPromise.then(res => { incrementProgress(10); return res; }), // +10% = 50%
+        tagsPromise.then(res => { incrementProgress(15); return res; }),
+        pricingSuggestionPromise.then(res => { incrementProgress(10); return res; }),
     ]);
 
     const searchTags = tagsResult.searchTags;
     if (!searchTags || searchTags.length === 0) throw new Error("Failed to optimize search tags.");
     if (!pricingSuggestionResult) throw new Error("Failed to suggest package pricing.");
 
-    // Step 6: Generate Detailed Pricing Packages
     const detailedPricingPromise = generatePackageDetails({
       mainKeyword,
       gigTitle,
@@ -101,10 +103,9 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       premiumPrice: pricingSuggestionResult.premium,
     });
 
-    // Step 7: Generate FAQs
-    const simulatedInsights = getSimulatedTopGigInsights(mainKeyword, category, subcategory);
+    const insightsForFaq = marketAnalysis?.overallMarketSummary || getSimulatedTopGigInsights(mainKeyword, category, subcategory);
 
-    // Step 8: Suggest Requirements
+
     const requirementsPromise = suggestRequirements({
       gigTitle,
       gigCategory: category,
@@ -112,9 +113,8 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       gigDescription: gigDescription,
     });
 
-    // Await remaining promises
     const detailedPricingResult = await detailedPricingPromise;
-    incrementProgress(20); // +20% = 70%
+    incrementProgress(20);
     if (!detailedPricingResult) throw new Error("Failed to generate detailed pricing.");
 
     const faqPromise = generateFaqsOnly({
@@ -122,14 +122,14 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       gigTitle,
       category,
       subcategory,
-      topPerformingGigInsights: simulatedInsights,
+      topPerformingGigInsights: insightsForFaq,
       packageDetails: detailedPricingResult
     });
 
-    const [faqResult, requirementsResult, imagesResult] = await Promise.all([ // imagesResult (plural)
-        faqPromise.then(res => { incrementProgress(10); return res; }), // +10% = 80%
-        requirementsPromise.then(res => { incrementProgress(10); return res; }), // +10% = 90%
-        imagesPromise.then(res => { incrementProgress(10); return res; }) // +10% = 100%
+    const [faqResult, requirementsResult, imagesResult] = await Promise.all([
+        faqPromise.then(res => { incrementProgress(10); return res; }),
+        requirementsPromise.then(res => { incrementProgress(10); return res; }),
+        imagesPromise.then(res => { incrementProgress(10); return res; })
     ]);
 
     const faqs = faqResult.faqs;
@@ -138,7 +138,7 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
     const requirements = requirementsResult.requirements;
     if (!requirements || requirements.length === 0) throw new Error("Failed to suggest requirements.");
 
-    const imageDataUris = imagesResult?.imageDataUris; // imageDataUris (plural)
+    const imageDataUris = imagesResult?.imageDataUris;
     if(!imageDataUris || imageDataUris.length === 0) throw new Error("Failed to generate gig images.");
 
 
@@ -151,21 +151,23 @@ export async function generateFullGig(mainKeyword: string): Promise<GigData> {
       description: gigDescription,
       faqs: faqs,
       requirements: requirements,
-      imageDataUris: imageDataUris, // Store array of image URIs
-      imagePrompts: imagePrompts, // Store array of image prompts
+      imageDataUris: imageDataUris,
+      imagePrompts: imagePrompts,
+      marketAnalysis: marketAnalysis
     };
   } catch (e: any) {
     console.error("Error generating full gig data:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to generate gig data due to an unknown error.';
-
-    if (e.message) {
+     if (e.message) {
         const lowerMessage = e.message.toLowerCase();
         if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters") || lowerMessage.includes("returned no media url")) {
             errorMessage = "Image generation failed. The AI might be unable to create an image for this specific request, or safety filters might have blocked it. Please try a different keyword or check model capabilities.";
-        } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
+        } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded") || lowerMessage.includes("failed_precondition")) {
             errorMessage = "The AI service is currently experiencing high load or is temporarily unavailable. This is usually a temporary issue. Please try again in a few moments.";
         } else if (lowerMessage.includes("auth/unauthorized-domain") || lowerMessage.includes("firebase auth error")) {
           errorMessage = e.message;
+        } else if (lowerMessage.includes("invalid_argument") && lowerMessage.includes("schema validation failed")) {
+            errorMessage = `Schema validation failed. This often means the AI's response didn't match the expected format (e.g., text too long, missing fields). Details: ${e.message.substring(0, 200)}...`;
         }
     }
     return { error: errorMessage };
@@ -185,7 +187,7 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
   } catch (e: any) {
     console.error("Error refreshing search tags:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to refresh search tags due to an unknown error.';
-     if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
+     if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded") || e.message.includes("failed_precondition"))) {
         errorMessage = "The AI service for search tag optimization is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
     }
     return { error: errorMessage };
@@ -194,8 +196,8 @@ export async function refreshSearchTagsAction(input: OptimizeSearchTagsInput): P
 
 
 export async function regenerateGigImageAction(
-  input: GenerateGigImageFromPromptInput // Accepts array of prompts
-): Promise<GenerateGigImageOutput | { error: string }> { // Returns array of URIs
+  input: GenerateGigImageFromPromptInput
+): Promise<GenerateGigImageOutput | { error: string }> {
   if (!input.imagePrompts || input.imagePrompts.length === 0) {
     return { error: 'Image prompts are required to regenerate images.' };
   }
@@ -204,7 +206,7 @@ export async function regenerateGigImageAction(
     if (!result.imageDataUris || result.imageDataUris.length === 0) {
       return { error: "AI failed to return any image data URIs." };
     }
-    return result; // Contains imageDataUris array
+    return result;
   } catch (e: any) {
     console.error("Error regenerating gig images:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate images due to an unknown error.';
@@ -212,7 +214,7 @@ export async function regenerateGigImageAction(
         const lowerMessage = e.message.toLowerCase();
         if (lowerMessage.includes("image generation failed") || lowerMessage.includes("safety filters") || lowerMessage.includes("returned no media url")) {
             errorMessage = "Image regeneration failed. The AI might be unable to create an image for this specific prompt, or safety filters might have blocked it. Please try a different approach or check model capabilities.";
-        } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded")) {
+        } else if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded") || lowerMessage.includes("failed_precondition")) {
             errorMessage = "The AI service for image generation is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
         }
     }
@@ -235,8 +237,36 @@ export async function regenerateTitleAction(
   } catch (e: any) {
     console.error("Error regenerating gig title:", e);
     let errorMessage = (e instanceof Error) ? e.message : 'Failed to regenerate title due to an unknown error.';
-    if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded"))) {
+    if (e.message && (e.message.includes("503") || e.message.includes("overloaded") || e.message.includes("service unavailable") || e.message.includes("model is overloaded") || e.message.includes("failed_precondition"))) {
         errorMessage = "The AI service for title regeneration is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
+    }
+    return { error: errorMessage };
+  }
+}
+
+
+export async function analyzeMarketStrategyAction(
+  input: AnalyzeMarketStrategyInput
+): Promise<AnalyzeMarketStrategyOutput | { error: string }> {
+  if (!input.mainKeyword || input.mainKeyword.trim() === '') {
+    return { error: 'Main keyword cannot be empty for market analysis.' };
+  }
+  try {
+    const result = await analyzeMarketAndSuggestStrategy(input);
+    if (!result) {
+        throw new Error("AI failed to return market analysis data.");
+    }
+    return result;
+  } catch (e: any) {
+    console.error("Error analyzing market strategy:", e);
+    let errorMessage = (e instanceof Error) ? e.message : 'Failed to analyze market strategy due to an unknown error.';
+     if (e.message) {
+        const lowerMessage = e.message.toLowerCase();
+        if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded") || lowerMessage.includes("failed_precondition")) {
+            errorMessage = "The AI service for market analysis is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
+        } else if (lowerMessage.includes("invalid_argument") && lowerMessage.includes("schema validation failed")) {
+             errorMessage = `Schema validation failed for market analysis. This often means the AI's response didn't match the expected format. Details: ${e.message.substring(0, 200)}...`;
+        }
     }
     return { error: errorMessage };
   }

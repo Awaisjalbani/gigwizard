@@ -1,14 +1,15 @@
-// src/app/create/page.tsx (Old src/app/page.tsx, now for authenticated users)
+
+// src/app/create/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide icon
+import NextImage from 'next/image';
 import { useRouter } from 'next/navigation';
 import { getAuth, onAuthStateChanged, type User } from 'firebase/auth';
-import { app as firebaseApp } from '@/lib/firebase'; // Ensure firebase is initialized
+import { app as firebaseApp } from '@/lib/firebase';
 
 import {
   AlertTriangle,
@@ -19,7 +20,7 @@ import {
   FileText,
   FolderKanban,
   HelpCircle,
-  ImageIcon, // Lucide icon
+  ImageIcon,
   KeyRound,
   LayersIcon,
   Lightbulb,
@@ -34,6 +35,13 @@ import {
   RefreshCw,
   PenLine,
   ListChecks,
+  Search,
+  Target,
+  ClipboardList,
+  Users,
+  Award,
+  Handshake,
+  Brain,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -47,14 +55,15 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction } from '../actions';
-import type { SinglePackageDetail, SearchTagAnalytics } from '@/ai/schemas/gig-generation-schemas';
+import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction } from '../actions';
+import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
 
 
 const formSchema = z.object({
   mainKeyword: z.string().min(3, { message: 'Keyword must be at least 3 characters long.' }),
+  userGigConcept: z.string().optional(),
 });
 type FormData = z.infer<typeof formSchema>;
 
@@ -67,9 +76,15 @@ export default function CreateGigPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [currentMainKeyword, setCurrentMainKeyword] = useState<string | null>(null);
+  const [userGigConcept, setUserGigConcept] = useState<string>(''); // For the new textarea
+
   const [isRefreshingTags, setIsRefreshingTags] = useState(false);
   const [isRecreatingImage, setIsRecreatingImage] = useState(false);
   const [isRegeneratingTitle, setIsRegeneratingTitle] = useState(false);
+
+  const [marketAnalysisData, setMarketAnalysisData] = useState<AnalyzeMarketStrategyOutput | null>(null);
+  const [isAnalyzingMarket, setIsAnalyzingMarket] = useState(false);
+  const [marketAnalysisError, setMarketAnalysisError] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -95,11 +110,68 @@ export default function CreateGigPage() {
   const {
     register,
     handleSubmit,
+    control, // For Controller component
+    watch, // To watch form values
     formState: { errors },
     reset,
+    setValue, // To set form values programmatically
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+        mainKeyword: "",
+        userGigConcept: ""
+    }
   });
+
+  const watchedMainKeyword = watch("mainKeyword");
+
+  const handleMarketAnalysis = async () => {
+    const keyword = watchedMainKeyword;
+    const concept = userGigConcept;
+
+    if (!keyword || keyword.trim().length < 3) {
+        toast({
+            variant: 'destructive',
+            title: 'Keyword Required',
+            description: 'Please enter a main keyword (at least 3 characters) to analyze the market.',
+        });
+        return;
+    }
+
+    setIsAnalyzingMarket(true);
+    setMarketAnalysisData(null);
+    setMarketAnalysisError(null);
+    setGigData(null); // Clear previous full gig data
+
+    try {
+        const result = await analyzeMarketStrategyAction({ mainKeyword: keyword, userGigConcept: concept });
+        if ('error' in result) {
+            setMarketAnalysisError(result.error);
+            toast({
+                variant: 'destructive',
+                title: 'Market Analysis Failed',
+                description: result.error,
+            });
+        } else {
+            setMarketAnalysisData(result);
+            toast({
+                title: 'Market Analysis Complete!',
+                description: 'Strategic insights are ready for your review.',
+            });
+        }
+    } catch (error: any) {
+        const msg = error.message || 'An unexpected error occurred during market analysis.';
+        setMarketAnalysisError(msg);
+        toast({
+            variant: 'destructive',
+            title: 'Analysis Error',
+            description: msg,
+        });
+    } finally {
+        setIsAnalyzingMarket(false);
+    }
+  };
+
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     if (!currentUser) {
@@ -113,26 +185,29 @@ export default function CreateGigPage() {
     }
 
     setIsLoading(true);
-    setGigData(null);
+    setGigData(null); // Clear previous full gig data if any, but keep marketAnalysisData
     setCurrentMainKeyword(null);
     setProgress(0);
 
     const progressInterval = setInterval(() => {
        setProgress((prev) => {
-        if (prev >= 95 && !gigData) {
+        // Stop incrementing if it's near 100% and data hasn't arrived, to avoid fake completion.
+        if (prev >= 95 && !gigData) { // Check against gigData for this progress
           return 95;
         }
         if (prev >= 100) {
             clearInterval(progressInterval);
             return 100;
         }
+        // Dynamic increment: faster at start, slower at end.
         const increment = gigData ? 10 : (prev < 30 ? 5 : (prev < 70 ? 2 : 1));
         return Math.min(prev + increment, 99);
       });
     }, 300);
 
     try {
-      const result = await generateFullGig(data.mainKeyword);
+      // Pass marketAnalysisData to generateFullGig if it exists
+      const result = await generateFullGig(data.mainKeyword, marketAnalysisData || undefined);
       clearInterval(progressInterval);
       setProgress(100);
 
@@ -158,7 +233,7 @@ export default function CreateGigPage() {
       let errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred.';
       if (error.message && (error.message.includes("auth/unauthorized-domain") || error.message.includes("FIREBASE AUTH ERROR"))) {
         errorMessage = error.message;
-      } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded"))) {
+      } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded") || error.message.includes("failed_precondition"))) {
         errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments.";
       }
 
@@ -194,7 +269,7 @@ export default function CreateGigPage() {
       });
 
       if (Array.isArray(newTagsResult)) {
-        setGigData(prevData => ({ ...prevData, searchTags: newTagsResult, error: undefined }));
+        setGigData(prevData => ({ ...prevData!, searchTags: newTagsResult, error: undefined }));
         toast({
           title: 'Search Tags Refreshed!',
           description: 'A new set of optimized tags has been generated.',
@@ -231,7 +306,7 @@ export default function CreateGigPage() {
     try {
       const result = await regenerateGigImageAction({ imagePrompts: gigData.imagePrompts });
       if (result.imageDataUris && result.imageDataUris.length > 0) {
-        setGigData(prevData => ({ ...prevData, imageDataUris: result.imageDataUris, error: undefined }));
+        setGigData(prevData => ({ ...prevData!, imageDataUris: result.imageDataUris, error: undefined }));
         toast({
           title: 'Images Recreated!',
           description: 'New gig images have been generated.',
@@ -271,7 +346,7 @@ export default function CreateGigPage() {
       });
 
       if (result.newGigTitle) {
-        setGigData(prevData => ({ ...prevData, title: result.newGigTitle, error: undefined }));
+        setGigData(prevData => ({ ...prevData!, title: result.newGigTitle, error: undefined }));
         toast({
           title: 'Title Regenerated!',
           description: 'A new gig title has been crafted.',
@@ -417,7 +492,7 @@ export default function CreateGigPage() {
     );
   }
 
-  const anyActionLoading = isLoading || isRefreshingTags || isRecreatingImage || isRegeneratingTitle;
+  const anyActionLoading = isLoading || isRefreshingTags || isRecreatingImage || isRegeneratingTitle || isAnalyzingMarket;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
@@ -496,20 +571,130 @@ export default function CreateGigPage() {
               <p className="text-sm text-destructive mt-1.5">{errors.mainKeyword.message}</p>
             )}
           </div>
-          <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={anyActionLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
-                Generating Your Gig...
-              </>
-            ) : (
-              <>
-                <Sparkles className="mr-2.5 h-5 w-5" />
-                Create My Gig!
-              </>
-            )}
-          </Button>
+
+          <div>
+            <Label htmlFor="userGigConcept" className="text-lg font-semibold flex items-center mb-2.5 text-foreground">
+                <Lightbulb className="mr-2.5 h-5 w-5 text-primary" />
+                Briefly describe your gig idea or concept (Optional)
+            </Label>
+            <Textarea
+                id="userGigConcept"
+                placeholder="e.g., I want to offer premium Shopify theme customization focused on speed and mobile experience."
+                className="text-base py-3 px-4 focus:border-primary focus:ring-primary min-h-[80px]"
+                value={userGigConcept}
+                onChange={(e) => setUserGigConcept(e.target.value)}
+                disabled={anyActionLoading}
+            />
+            <p className="text-xs text-muted-foreground mt-1.5">Providing this helps the AI generate more tailored market strategies.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button type="button" onClick={handleMarketAnalysis} variant="outline" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={anyActionLoading || !watchedMainKeyword || watchedMainKeyword.trim().length < 3}>
+              {isAnalyzingMarket ? (
+                <>
+                  <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
+                  Analyzing Market...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2.5 h-5 w-5" />
+                  Analyze Market & Strategy
+                </>
+              )}
+            </Button>
+
+            <Button type="submit" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={anyActionLoading || !watchedMainKeyword || watchedMainKeyword.trim().length < 3}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
+                  Generating Your Gig...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2.5 h-5 w-5" />
+                  Create My Gig!
+                </>
+              )}
+            </Button>
+          </div>
         </form>
+
+        {isAnalyzingMarket && (
+             <div className="mt-10 space-y-3">
+                <Progress value={progress} className="w-full h-3" /> {/* You might want a separate progress for analysis or a simpler loader */}
+                <p className="text-md text-center text-muted-foreground">AI is researching the market... This might take a moment.</p>
+            </div>
+        )}
+
+        {marketAnalysisError && !isAnalyzingMarket && (
+           <Alert variant="destructive" className="mt-10 p-5">
+             <AlertTriangle className="h-5 w-5" />
+             <AlertTitle className="text-lg">Market Analysis Error</AlertTitle>
+             <AlertDescription className="text-base">{marketAnalysisError}</AlertDescription>
+           </Alert>
+        )}
+
+        {marketAnalysisData && !isAnalyzingMarket && (
+          <div className="mt-12 space-y-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-500">
+            <Separator />
+            <h2 className="text-2xl font-bold text-center text-primary flex items-center justify-center">
+                <Brain className="mr-3 h-7 w-7" /> Market Analysis & Strategic Insights
+            </h2>
+            
+            <GigResultSection title="Simulated Top Competitor Profiles" icon={Users} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
+                    {marketAnalysisData.simulatedCompetitorProfiles.map((profile, index) => (
+                        <Card key={index} className="flex flex-col shadow-md hover:shadow-lg transition-all duration-300 bg-card transform hover:-translate-y-1">
+                            <CardHeader className="bg-secondary rounded-t-lg p-4">
+                                <CardTitle className="text-md font-semibold text-primary">{profile.gigTitle}</CardTitle>
+                                <CardDescription className="text-xs text-foreground pt-1">Primary Offering: {profile.primaryOffering}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-grow pt-4 space-y-2">
+                                <div>
+                                    <strong className="text-xs text-muted-foreground">Key Selling Points:</strong>
+                                    <ul className="list-disc list-inside text-xs text-muted-foreground ml-4 mt-1">
+                                        {profile.keySellingPoints.map((point, i) => <li key={i}>{point}</li>)}
+                                    </ul>
+                                </div>
+                                <p className="text-xs text-muted-foreground"><strong>Price Range:</strong> {profile.estimatedPriceRange}</p>
+                                <p className="text-xs text-muted-foreground"><strong>Targets:</strong> {profile.targetAudienceHint}</p>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </GigResultSection>
+
+            <GigResultSection title="Observed Success Factors" icon={TrendingUp} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <ul className="list-disc list-inside space-y-2 p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">
+                    {marketAnalysisData.observedSuccessFactors.map((factor, index) => (
+                        <li key={index}>{factor}</li>
+                    ))}
+                </ul>
+            </GigResultSection>
+
+            <GigResultSection title="Strategic Recommendations for You" icon={Target} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <ul className="list-disc list-inside space-y-2 p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">
+                    {marketAnalysisData.strategicRecommendationsForUser.map((rec, index) => (
+                        <li key={index}>{rec}</li>
+                    ))}
+                </ul>
+            </GigResultSection>
+
+            <GigResultSection title="Overall Market Summary" icon={ClipboardList} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <p className="p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">{marketAnalysisData.overallMarketSummary}</p>
+            </GigResultSection>
+
+            <GigResultSection title="Outreach Tip" icon={Handshake} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <p className="p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">{marketAnalysisData.outreachTip}</p>
+            </GigResultSection>
+
+            <GigResultSection title="Winning Approach Summary" icon={Award} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <p className="p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">{marketAnalysisData.winningApproachSummary}</p>
+            </GigResultSection>
+            <Separator />
+          </div>
+        )}
+
 
         {isLoading && (
           <div className="mt-10 space-y-3">
@@ -528,6 +713,9 @@ export default function CreateGigPage() {
 
         {gigData && !gigData.error && !isLoading && (
           <div className="mt-12 space-y-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-500">
+             <h2 className="text-2xl font-bold text-center text-primary flex items-center justify-center">
+                <Sparkles className="mr-3 h-7 w-7" /> Your Generated Gig Components
+            </h2>
             <GigResultSection title="Optimized Gig Title" icon={Lightbulb} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
               <div className="flex items-center justify-between p-5 bg-secondary rounded-lg shadow-inner">
                 <p className="text-xl font-semibold text-foreground flex-grow">{gigData.title}</p>
@@ -647,12 +835,13 @@ export default function CreateGigPage() {
                                 <h4 className="text-md font-semibold text-muted-foreground mb-3">
                                     Main Hero Image
                                 </h4>
-                                <div className="w-full max-w-md mx-auto">
+                                <div className="w-full max-w-2xl mx-auto">
                                     <NextImage
                                         src={gigData.imageDataUris[0]}
                                         alt="AI Generated Gig Hero Image"
                                         width={600}
                                         height={400}
+                                        priority
                                         className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
                                         data-ai-hint="professional service hero"
                                     />
@@ -666,7 +855,7 @@ export default function CreateGigPage() {
 
                         {/* Sample Images */}
                         {gigData.imageDataUris.length > 1 && (
-                             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-6">
+                             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-10">
                                 {gigData.imageDataUris.slice(1).map((uri, index) => (
                                     <div key={`sample-image-container-${index}`} className="flex flex-col items-center w-full">
                                         <h4 className="text-md font-semibold text-muted-foreground mb-3">
@@ -716,32 +905,16 @@ export default function CreateGigPage() {
         </GigResultSection>
 
 
-            {/*
-            {gigData.imagePrompts && gigData.imagePrompts.length > 0 && (
-              <GigResultSection title="Generated Image Prompts (for AI)" icon={MessageSquareText} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
-                {gigData.imagePrompts.map((prompt, index) => (
-                   <div key={index} className="mb-4">
-                     <Label htmlFor={`imagePrompt-${index}`} className="text-sm font-medium">Prompt {index + 1}:</Label>
-                     <Textarea
-                        id={`imagePrompt-${index}`}
-                        value={prompt}
-                        readOnly
-                        className="min-h-[100px] text-sm bg-secondary rounded-lg shadow-inner p-3 mt-1 focus-visible:ring-primary custom-scrollbar"
-                        aria-label={`Generated Image Prompt ${index + 1}`}
-                     />
-                   </div>
-                ))}
-              </GigResultSection>
-            )}
-            */}
-
             <div className="text-center mt-16">
               <Button
                 onClick={() => {
                     setGigData(null);
+                    setMarketAnalysisData(null);
+                    setMarketAnalysisError(null);
                     setProgress(0);
                     setCurrentMainKeyword(null);
-                    reset({ mainKeyword: '' });
+                    setUserGigConcept('');
+                    reset({ mainKeyword: '', userGigConcept: '' });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
@@ -750,7 +923,7 @@ export default function CreateGigPage() {
                 disabled={anyActionLoading}
               >
                 <ArrowRight className="mr-2.5 h-5 w-5 transform rotate-[270deg]" />
-                Create Another Gig
+                Start Over / New Gig
               </Button>
             </div>
           </div>
@@ -765,3 +938,5 @@ export default function CreateGigPage() {
     </div>
   );
 }
+
+```
