@@ -486,7 +486,6 @@ export default function CreateGigPage() {
         setIntroVideoAssets(result);
         setGigData(prev => ({...prev!, introVideoAssets: result}));
         if (result.script) {
-           // Simple sentence splitting. More robust NLP could be used.
            scriptSentences.current = result.script.match(/[^.!?]+[.!?]+/g) || [result.script];
         } else {
             scriptSentences.current = [];
@@ -599,11 +598,11 @@ export default function CreateGigPage() {
     setCurrentPreviewSceneIndex(0);
     setIsPlayingPreview(true);
     setIsPreviewModalOpen(true); 
-    setCurrentSpokenText(''); // Reset current spoken text
+    setCurrentSpokenText(''); 
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window && introVideoAssets.script) {
         const speak = () => {
-            if (!isPlayingPreview && !isPreviewModalOpen) { // Ensure preview is still active
+            if (!isPlayingPreview && !isPreviewModalOpen) {
                  console.log("Preview stopped before speak function execution.");
                  return;
             }
@@ -625,18 +624,15 @@ export default function CreateGigPage() {
                 console.warn('No speech synthesis voices available at speak time.');
             }
             
-            let charIndex = 0;
             utterance.onboundary = (event) => {
-                if (event.name === 'sentence' || event.name === 'word') { // Some browsers might prefer word for more granularity
-                    const currentSentence = introVideoAssets.script.substring(event.charIndex);
-                    // Find the end of the sentence
-                    const sentenceEndMatch = currentSentence.match(/^[^.!?]+[.!?]+/);
+                if (event.name === 'sentence' || event.name === 'word') { 
+                    const currentText = introVideoAssets.script.substring(event.charIndex);
+                    const sentenceEndMatch = currentText.match(/^[^.!?]+[.!?]+/);
                     if (sentenceEndMatch) {
                          setCurrentSpokenText(sentenceEndMatch[0]);
                     } else {
-                        // Fallback if no clear sentence end is found from this point
-                        const fallbackText = introVideoAssets.script.substring(event.charIndex, event.charIndex + 100) + "...";
-                        setCurrentSpokenText(fallbackText);
+                        const fallbackText = introVideoAssets.script.substring(event.charIndex, Math.min(event.charIndex + 120, introVideoAssets.script.length));
+                        setCurrentSpokenText(fallbackText + (fallbackText.length < introVideoAssets.script.length - event.charIndex ? "..." : ""));
                     }
                 }
             };
@@ -668,8 +664,6 @@ export default function CreateGigPage() {
                  window.speechSynthesis.cancel();
               }
             }, 100);
-
-
         };
 
         if (window.speechSynthesis.getVoices().length === 0) {
@@ -681,10 +675,9 @@ export default function CreateGigPage() {
             };
             window.speechSynthesis.onvoiceschanged = voiceChangedHandler;
             
-            // Fallback timer in case onvoiceschanged doesn't fire or is slow
             setTimeout(() => {
-                 if (window.speechSynthesis.onvoiceschanged === voiceChangedHandler) { // Check if handler hasn't been cleared
-                    window.speechSynthesis.onvoiceschanged = null; // Clear it
+                 if (window.speechSynthesis.onvoiceschanged === voiceChangedHandler) { 
+                    window.speechSynthesis.onvoiceschanged = null; 
                     console.log("Voice changed event fallback timer fired.");
                     if (isPlayingPreview && isPreviewModalOpen) {
                         if(window.speechSynthesis.getVoices().length > 0){
@@ -699,7 +692,7 @@ export default function CreateGigPage() {
                         }
                     }
                  }
-            }, 1500); // Increased timeout
+            }, 1500);
 
         } else {
             console.log("Voices already available.");
@@ -909,15 +902,14 @@ export default function CreateGigPage() {
         }
         .preview-image-container {
           width: 100%;
-          aspect-ratio: 16 / 9;
-          background-color: hsl(var(--black)); /* Usually black for video players */
+          height: 100%; 
+          background-color: hsl(var(--black)); 
           border-radius: 0.5rem;
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          border: 1px solid hsl(var(--border));
-          position: relative; /* For captions overlay */
+          position: relative; 
         }
         .preview-image {
           width: 100%;
@@ -926,20 +918,20 @@ export default function CreateGigPage() {
         }
         .preview-caption-overlay {
           position: absolute;
-          bottom: 5%; /* Position captions at the bottom */
+          bottom: 5%; 
           left: 50%;
           transform: translateX(-50%);
           width: 90%;
           padding: 0.5rem 1rem;
-          background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black background */
+          background-color: rgba(0, 0, 0, 0.7); 
           color: white;
           text-align: center;
-          border-radius: 0.375rem; /* rounded-md */
-          font-size: 1rem; /* Slightly larger for readability */
+          border-radius: 0.375rem; 
+          font-size: 1rem; 
           line-height: 1.5;
-          max-height: 25%; /* Limit caption height */
+          max-height: 25%; 
           overflow-y: auto;
-          opacity: 0; /* Hidden by default */
+          opacity: 0; 
           transition: opacity 0.3s ease-in-out;
         }
         .preview-caption-overlay.visible {
@@ -1503,7 +1495,7 @@ export default function CreateGigPage() {
                                 Music: {introVideoAssets.audioSuggestion || "Not specified"} (manual add)
                             </p>
                         )}
-                        <Button variant="outline" onClick={closePreviewModal} className="text-gray-300 border-gray-600 hover:bg-gray-700 hover:text-white">Close Preview</Button>
+                        
                    </div>
                 </DialogContent>
               </Dialog>
