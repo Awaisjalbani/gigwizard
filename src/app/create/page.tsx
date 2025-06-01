@@ -33,8 +33,8 @@ import {
   LogOut,
   Download,
   RefreshCw,
-  PenLine, 
-  ListChecks, 
+  PenLine,
+  ListChecks,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction } from '../actions'; 
+import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction } from '../actions';
 import type { SinglePackageDetail, SearchTagAnalytics } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
@@ -85,11 +85,11 @@ export default function CreateGigPage() {
           description: "Redirecting to sign-in page...",
           variant: "destructive"
         })
-        router.push('/auth'); 
+        router.push('/auth');
       }
       setAuthLoading(false);
     });
-    return () => unsubscribe(); 
+    return () => unsubscribe();
   }, [router, toast]);
 
 
@@ -147,7 +147,7 @@ export default function CreateGigPage() {
         setCurrentMainKeyword(null);
       } else {
         setGigData(result);
-        setCurrentMainKeyword(data.mainKeyword); 
+        setCurrentMainKeyword(data.mainKeyword);
         toast({
           title: 'Gig Generation Complete!',
           description: 'Your Fiverr gig components are ready.',
@@ -306,7 +306,7 @@ export default function CreateGigPage() {
       </CardHeader>
       <CardContent className="flex-grow pt-4 space-y-3">
         <div className="text-sm text-muted-foreground h-16 overflow-y-auto custom-scrollbar" dangerouslySetInnerHTML={{ __html: (pkg.description || "").replace(/\n/g, '<br/>') }} />
-        
+
         {pkg.features && pkg.features.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border/30">
             <h4 className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center">
@@ -347,7 +347,7 @@ export default function CreateGigPage() {
   };
 
   const handleSignOut = async () => {
-    setIsLoading(true); 
+    setIsLoading(true);
     try {
       await signOut();
       toast({ title: "Signed Out", description: "You have been successfully signed out." });
@@ -379,18 +379,18 @@ export default function CreateGigPage() {
   const formatDescription = (description: string | undefined): string => {
     if (!description) return '';
     return description
-      .replace(/\\n/g, '\n') 
-      .replace(/\n/g, '<br/>') 
-      .replace(/^### (.*?)(<br\s*\/?>|$)/gm, (match, content) => `<h3 class="text-lg font-semibold mt-5 mb-3 text-primary border-b border-accent/70 pb-1.5">${content}</h3>`)
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') 
-      .replace(/__(.*?)__/g, '<strong>$1</strong>')     
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')       
-      .replace(/_(.*?)_/g, '<em>$1</em>')         
+      .replace(/\\n/g, '\n')
+      .replace(/\n/g, '<br/>')
+      .replace(/^### (.*?)(<br\s*\/?>|$)/gm, (match, content) => `<h3 class="text-lg font-semibold mt-5 mb-3 text-primary border-b border-accent/70 pb-1.5">${content.trim()}</h3>`)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/_(.*?)_/g, '<em>$1</em>')
       .replace(/^(?:✔|🏆|-)\s*(.*?)(<br\s*\/?>|$)/gm, (match, content) => {
         let bullet = '';
         if (match.startsWith('✔')) bullet = '<span class="text-primary font-bold mr-1.5">✔</span> ';
         else if (match.startsWith('🏆')) bullet = '<span class="text-primary font-bold mr-1.5">🏆</span> ';
-        else if (match.startsWith('-')) bullet = '<span class="text-primary font-bold mr-1.5">•</span> '; 
+        else if (match.startsWith('-')) bullet = '<span class="text-primary font-bold mr-1.5">•</span> ';
         return `<ul style="list-style: none; padding-left: 0; margin-bottom: 0;"><li style="padding-left: 1.5em; text-indent: -1.5em; margin-bottom: 0.65rem; line-height: 1.65; color: hsl(var(--muted-foreground));">${bullet}${content.trim()}</li></ul>`;
       });
   };
@@ -464,8 +464,8 @@ export default function CreateGigPage() {
                 </div>
             </div>
             {currentUser && (
-              <div className="flex flex-col xs:flex-row items-center space-y-2 xs:space-y-0 xs:space-x-4">
-                <div className="text-right">
+              <div className="flex flex-col xs:flex-row items-center gap-2 xs:gap-4">
+                <div className="text-center xs:text-right">
                   <p className="text-sm font-medium text-foreground">{currentUser.displayName || 'User'}</p>
                   <p className="text-xs text-muted-foreground">{currentUser.email}</p>
                 </div>
@@ -529,7 +529,7 @@ export default function CreateGigPage() {
 
         {gigData && !gigData.error && !isLoading && (
           <div className="mt-12 space-y-10 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-500">
-            <GigResultSection title="Optimized Gig Title" icon={Lightbulb}>
+            <GigResultSection title="Optimized Gig Title" icon={Lightbulb} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
               <div className="flex items-center justify-between p-5 bg-secondary rounded-lg shadow-inner">
                 <p className="text-xl font-semibold text-foreground flex-grow">{gigData.title}</p>
                 <Button
@@ -550,15 +550,15 @@ export default function CreateGigPage() {
             </GigResultSection>
 
             <div className="grid md:grid-cols-2 gap-8">
-              <GigResultSection title="Suggested Category" icon={FolderKanban}>
+              <GigResultSection title="Suggested Category" icon={FolderKanban} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-foreground">{gigData.category}</p>
               </GigResultSection>
-              <GigResultSection title="Suggested Subcategory" icon={BookCopy}>
+              <GigResultSection title="Suggested Subcategory" icon={BookCopy} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
                 <p className="p-5 bg-secondary rounded-lg shadow-inner text-foreground">{gigData.subcategory}</p>
               </GigResultSection>
             </div>
 
-            <GigResultSection title="Strategic Search Tags & Analytics" icon={TagsIcon}>
+            <GigResultSection title="Strategic Search Tags & Analytics" icon={TagsIcon} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
                 {gigData.searchTags?.map((tag) => (
                   <Card key={tag.term} className="bg-secondary shadow-inner transition-all duration-300 hover:scale-105 hover:shadow-md">
@@ -600,7 +600,7 @@ export default function CreateGigPage() {
               </div>
             </GigResultSection>
 
-            <GigResultSection title="High-Converting Pricing Packages" icon={BadgeDollarSign}>
+            <GigResultSection title="High-Converting Pricing Packages" icon={BadgeDollarSign} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
               <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6 mt-2">
                 {gigData.pricing?.basic && renderPricingPackage(gigData.pricing.basic, "Basic")}
                 {gigData.pricing?.standard && renderPricingPackage(gigData.pricing.standard, "Standard")}
@@ -608,14 +608,14 @@ export default function CreateGigPage() {
               </div>
             </GigResultSection>
 
-            <GigResultSection title="Compelling Gig Description" icon={FileText}>
+            <GigResultSection title="Compelling Gig Description" icon={FileText} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
                 <div
                     className="p-5 bg-secondary rounded-lg shadow-inner space-y-3 markdown-content custom-scrollbar max-h-[450px] overflow-y-auto text-foreground"
                     dangerouslySetInnerHTML={{ __html: formatDescription(gigData.description) }}
                 />
             </GigResultSection>
 
-            <GigResultSection title="Frequently Asked Questions (FAQs)" icon={HelpCircle}>
+            <GigResultSection title="Frequently Asked Questions (FAQs)" icon={HelpCircle} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
               <Accordion type="single" collapsible className="w-full space-y-3">
                 {gigData.faqs?.map((faq, index) => (
                   <AccordionItem key={index} value={`item-${index}`} className="bg-secondary rounded-lg shadow-inner border-border overflow-hidden">
@@ -630,7 +630,7 @@ export default function CreateGigPage() {
               </Accordion>
             </GigResultSection>
 
-            <GigResultSection title="Essential Client Requirements" icon={CheckSquare}>
+            <GigResultSection title="Essential Client Requirements" icon={CheckSquare} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
               <ul className="list-disc list-inside space-y-2.5 p-5 bg-secondary rounded-lg shadow-inner text-muted-foreground">
                 {gigData.requirements?.map((req, index) => (
                   <li key={index}>{req}</li>
@@ -638,29 +638,62 @@ export default function CreateGigPage() {
               </ul>
             </GigResultSection>
 
-            <GigResultSection title="AI Generated Gig Images" icon={ImageIcon}>
-                <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-6">
+           <GigResultSection title="AI Generated Gig Images" icon={ImageIcon} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                <div className="p-5 bg-secondary rounded-lg shadow-inner flex flex-col items-center space-y-8">
                     {gigData.imageDataUris && gigData.imageDataUris.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 gap-6 w-full">
-                            {gigData.imageDataUris.map((uri, index) => (
-                                <div key={index} className="flex flex-col items-center">
-                                     <h4 className="text-md font-semibold text-muted-foreground mb-2">
-                                        {index === 0 ? "Main Hero Image" : `Sample Image ${index}`}
+                        <div className="w-full space-y-8">
+                            {/* Hero Image */}
+                            {gigData.imageDataUris[0] && (
+                                <div className="flex flex-col items-center w-full">
+                                    <h4 className="text-md font-semibold text-muted-foreground mb-3">
+                                        Main Hero Image
                                     </h4>
-                                    <NextImage
-                                        src={uri}
-                                        alt={`AI Generated Gig Image ${index + 1}${index === 0 ? ' (Hero)' : ` (Sample ${index})`}`}
-                                        width={index === 0 ? 600 : 450} // Larger for hero image
-                                        height={index === 0 ? 400 : 300}
-                                        className="rounded-lg border-2 border-border shadow-lg object-cover"
-                                        data-ai-hint="professional service relevant"
-                                    />
-                                    <Button onClick={() => handleDownloadImage(uri, index)} variant="outline" size="sm" className="mt-3 shadow-md" disabled={anyActionLoading}>
-                                      <Download className="mr-2 h-4 w-4" />
-                                      Download Image {index + 1}
+                                    <div className="w-full max-w-2xl mx-auto">
+                                        <NextImage
+                                            src={gigData.imageDataUris[0]}
+                                            alt="AI Generated Gig Image 1 (Hero)"
+                                            width={600}
+                                            height={400}
+                                            className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
+                                            data-ai-hint="professional service hero"
+                                            priority
+                                        />
+                                    </div>
+                                    <Button onClick={() => handleDownloadImage(gigData.imageDataUris![0], 0)} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download Hero Image
                                     </Button>
                                 </div>
-                            ))}
+                            )}
+
+                            {/* Sample Images Container */}
+                            {gigData.imageDataUris.length > 1 && (
+                                <div className="w-full">
+                                    <h4 className="text-md font-semibold text-muted-foreground mb-3 text-center">
+                                        Sample Images
+                                    </h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                                        {gigData.imageDataUris.slice(1).map((uri, index) => (
+                                            <div key={`sample-${index}`} className="flex flex-col items-center">
+                                                <div className="w-full">
+                                                    <NextImage
+                                                        src={uri}
+                                                        alt={`AI Generated Gig Sample Image ${index + 1}`}
+                                                        width={450}
+                                                        height={300}
+                                                        className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
+                                                        data-ai-hint="professional service sample"
+                                                    />
+                                                </div>
+                                                <Button onClick={() => handleDownloadImage(uri, index + 1)} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Download Sample {index + 1}
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                       <div className="w-full max-w-[600px] aspect-[3/2] bg-muted rounded-lg flex items-center justify-center border-2 border-border shadow-md" data-ai-hint="placeholder service">
@@ -668,9 +701,10 @@ export default function CreateGigPage() {
                         <p className="ml-3 text-muted-foreground">Images loading or not available...</p>
                       </div>
                     )}
+                    {/* Recreate All Images Button */}
                     {(gigData.imageDataUris && gigData.imageDataUris.length > 0) && (
-                        <div className="flex space-x-3 mt-4">
-                            <Button onClick={handleRecreateImage} variant="outline" className="shadow-md" disabled={anyActionLoading}>
+                        <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-6 w-full justify-center">
+                            <Button onClick={handleRecreateImage} variant="outline" className="shadow-md w-full sm:w-auto" disabled={anyActionLoading}>
                                 {isRecreatingImage ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                 ) : (
@@ -680,15 +714,16 @@ export default function CreateGigPage() {
                             </Button>
                         </div>
                     )}
-                    <p className="text-xs text-muted-foreground text-center max-w-md px-4">
+                    <p className="text-xs text-muted-foreground text-center max-w-md px-4 pt-4">
                       Fiverr recommended size: 1280x769px. Min: 712x430px. Use these AI images as inspiration or for mockups.
                     </p>
                 </div>
             </GigResultSection>
 
+
             {/*
             {gigData.imagePrompts && gigData.imagePrompts.length > 0 && (
-              <GigResultSection title="Generated Image Prompts (for AI)" icon={MessageSquareText}>
+              <GigResultSection title="Generated Image Prompts (for AI)" icon={MessageSquareText} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
                 {gigData.imagePrompts.map((prompt, index) => (
                    <div key={index} className="mb-4">
                      <Label htmlFor={`imagePrompt-${index}`} className="text-sm font-medium">Prompt {index + 1}:</Label>
@@ -711,7 +746,7 @@ export default function CreateGigPage() {
                     setGigData(null);
                     setProgress(0);
                     setCurrentMainKeyword(null);
-                    reset({ mainKeyword: '' }); 
+                    reset({ mainKeyword: '' });
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
@@ -735,3 +770,4 @@ export default function CreateGigPage() {
     </div>
   );
 }
+
