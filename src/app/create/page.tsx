@@ -34,6 +34,7 @@ import {
   Download,
   RefreshCw,
   PenLine, // New icon for title regeneration
+  ListChecks, // Icon for features
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -283,7 +284,7 @@ export default function CreateGigPage() {
           description: result.error,
         });
       }
-    } catch (error: any) {
+    } catch (error: any) => {
       toast({
         variant: 'destructive',
         title: 'Failed to Regenerate Title',
@@ -303,9 +304,27 @@ export default function CreateGigPage() {
         </CardTitle>
         <CardDescription className="text-sm text-foreground pt-1">{pkg.title}</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow pt-4 space-y-2">
-        <div className="text-sm text-muted-foreground h-24 overflow-y-auto custom-scrollbar" dangerouslySetInnerHTML={{ __html: pkg.description.replace(/\n/g, '<br/>') }} />
-        <div className="text-sm space-y-1 pt-2">
+      <CardContent className="flex-grow pt-4 space-y-3">
+        <div className="text-sm text-muted-foreground h-16 overflow-y-auto custom-scrollbar" dangerouslySetInnerHTML={{ __html: pkg.description.replace(/\n/g, '<br/>') }} />
+        
+        {pkg.features && pkg.features.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border/30">
+            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center">
+              <ListChecks className="w-3.5 h-3.5 mr-1.5 text-primary/80" />
+              Key Features:
+            </h4>
+            <ul className="list-none pl-0 text-xs text-muted-foreground space-y-1 custom-scrollbar max-h-24 overflow-y-auto">
+              {pkg.features.map((feature, idx) => (
+                <li key={idx} className="flex items-start">
+                  <span className="text-primary/90 mr-1.5 mt-0.5">✔</span>
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="text-sm space-y-1 pt-3 border-t border-border/30 mt-3">
           <div><strong>Delivery:</strong> <Badge variant="outline">{pkg.deliveryTime}</Badge></div>
           <div><strong>Revisions:</strong> <Badge variant="outline">{pkg.revisions}</Badge></div>
         </div>
@@ -741,3 +760,4 @@ export default function CreateGigPage() {
     </div>
   );
 }
+

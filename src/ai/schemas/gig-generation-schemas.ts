@@ -76,7 +76,8 @@ export type PricingPromptInput = z.infer<typeof PricingPromptInputSchema>;
 export const SinglePackageDetailSchema = z.object({
   title: z.string().describe('The compelling title of the package (e.g., "Basic Spark", "Standard Growth", "Premium Pro"). This should be unique each time.'),
   price: z.number().describe('The price for this package.'),
-  description: z.string().max(180, "Description must not exceed 180 characters.").describe('A detailed, benefit-oriented, and concise description (around 30 words, STRICTLY under 180 characters) of what is included in this package. Highlight key deliverables and unique selling points. This should be based on (simulated) deep research for the keyword and be unique each time.'),
+  description: z.string().max(100, "Description must not exceed 100 characters.").describe('A concise overview (around 20-30 words, STRICTLY under 100 characters) of the package core value. Highlight key deliverables and unique selling points. This should be based on (simulated) deep research for the keyword and be unique each time. Detailed features should be in the features list.'),
+  features: z.array(z.string()).optional().describe('A list of 2-5 key features or deliverables for this package, tailored to the gig type (e.g., ["3 Pages Included", "Content Upload", "Speed Optimization", "2 Logo Concepts"]). Must be unique per package and generation, and show progression of value across tiers.'),
   deliveryTime: z.string().describe('Estimated delivery time for this package (e.g., "3 Days", "1 Week").'),
   revisions: z.string().describe('Number of revisions included (e.g., "1 Revision", "3 Revisions", "Unlimited Revisions").')
 });
@@ -180,3 +181,4 @@ export const RegenerateGigTitleOutputSchema = z.object({
   newGigTitle: z.string().describe('The newly regenerated, different gig title.'),
 });
 export type RegenerateGigTitleOutput = z.infer<typeof RegenerateGigTitleOutputSchema>;
+
