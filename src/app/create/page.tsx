@@ -51,8 +51,8 @@ import {
   Volume2,
   Mic,
   Captions,
-  CheckCircle, 
-  X,
+  CheckCircle,
+  X, // Added X here from previous fix
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -110,7 +110,6 @@ export default function CreateGigPage() {
   const sceneTimerRef = useRef<NodeJS.Timeout | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [currentSpokenText, setCurrentSpokenText] = useState<string>('');
-  const scriptSentences = useRef<string[]>([]);
 
 
   useEffect(() => {
@@ -167,7 +166,7 @@ export default function CreateGigPage() {
     setIsAnalyzingMarket(true);
     setMarketAnalysisData(null);
     setMarketAnalysisError(null);
-    setGigData(null); 
+    setGigData(null);
     setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
     setGeneratedVideoSceneImages({});
@@ -223,7 +222,7 @@ export default function CreateGigPage() {
     setGigData(null);
     setCurrentMainKeyword(null);
     setProgress(0);
-    setIntroVideoAssets(null); 
+    setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
     setGeneratedVideoSceneImages({});
     setIsPreviewModalOpen(false);
@@ -231,22 +230,22 @@ export default function CreateGigPage() {
 
     const progressInterval = setInterval(() => {
        setProgress((prev) => {
-        if (prev >= 95 && !gigData) { 
+        if (prev >= 95 && !gigData) {
           return 95;
         }
-        if (prev >= 100) { 
+        if (prev >= 100) {
             clearInterval(progressInterval);
             return 100;
         }
         const increment = gigData ? 10 : (prev < 30 ? 5 : (prev < 70 ? 2 : 1));
-        return Math.min(prev + increment, 99); 
+        return Math.min(prev + increment, 99);
       });
     }, 300);
 
     try {
       const result = await generateFullGig(data.mainKeyword, marketAnalysisData || undefined);
-      clearInterval(progressInterval); 
-      setProgress(100); 
+      clearInterval(progressInterval);
+      setProgress(100);
 
       if (result.error) {
         toast({
@@ -270,11 +269,11 @@ export default function CreateGigPage() {
         });
       }
     } catch (error: any) {
-      clearInterval(progressInterval); 
+      clearInterval(progressInterval);
       setProgress(100);
       let errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred.';
       if (error.message && (error.message.includes("auth/unauthorized-domain") || error.message.includes("FIREBASE AUTH ERROR"))) {
-        errorMessage = error.message; 
+        errorMessage = error.message;
       } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded") || error.message.includes("failed_precondition"))) {
         errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments.";
       }
@@ -287,7 +286,7 @@ export default function CreateGigPage() {
       setGigData({ error: errorMessage });
       setCurrentMainKeyword(null);
     } finally {
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -355,7 +354,7 @@ export default function CreateGigPage() {
     try {
       const result = await regenerateGigImageAction({ imagePrompts: prompts });
       if (result.imageDataUris && result.imageDataUris.length > 0) {
-        if (!imagePromptsToUse) { 
+        if (!imagePromptsToUse) {
             setGigData(prevData => ({ ...prevData!, imageDataUris: result.imageDataUris, error: undefined }));
         }
         toast({
@@ -434,13 +433,13 @@ export default function CreateGigPage() {
 
   const handleGenerateVideoSceneImage = async (prompt: string, sceneIndex: number, isAutoGeneration = false) => {
     setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: 'loading'}));
-    const imageDataUris = await handleRecreateImage([prompt]); 
+    const imageDataUris = await handleRecreateImage([prompt]);
     if (imageDataUris && imageDataUris[0]) {
         setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: imageDataUris[0]}));
         return imageDataUris[0];
     } else {
-        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: null})); 
-        if (!isAutoGeneration) { 
+        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: null}));
+        if (!isAutoGeneration) {
           toast({
               variant: 'destructive',
               title: `Scene Image Failed (Scene ${sceneIndex + 1})`,
@@ -463,14 +462,14 @@ export default function CreateGigPage() {
     setIsGeneratingIntroVideoAssets(true);
     setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
-    setGeneratedVideoSceneImages({}); 
+    setGeneratedVideoSceneImages({});
 
     try {
       const result = await generateIntroVideoAssetsAction({
         mainKeyword: currentMainKeyword,
         gigTitle: gigData.title,
         gigDescription: gigData.description,
-        targetAudience: marketAnalysisData?.winningApproachSummary || userGigConcept, 
+        targetAudience: marketAnalysisData?.winningApproachSummary || userGigConcept,
       });
 
       if ('error' in result) {
@@ -485,11 +484,6 @@ export default function CreateGigPage() {
       } else {
         setIntroVideoAssets(result);
         setGigData(prev => ({...prev!, introVideoAssets: result}));
-        if (result.script) {
-           scriptSentences.current = result.script.match(/[^.!?]+[.!?]+/g) || [result.script];
-        } else {
-            scriptSentences.current = [];
-        }
 
         toast({
           title: (
@@ -502,7 +496,7 @@ export default function CreateGigPage() {
         });
 
         const imageGenPromises = result.visualPrompts.map((prompt, index) =>
-          handleGenerateVideoSceneImage(prompt, index, true) 
+          handleGenerateVideoSceneImage(prompt, index, true)
         );
         const images = await Promise.allSettled(imageGenPromises);
         const allSucceeded = images.every(imgResult => imgResult.status === 'fulfilled' && imgResult.value !== null);
@@ -520,7 +514,7 @@ export default function CreateGigPage() {
           });
         } else if (anySucceeded) {
            toast({
-            variant: 'default', 
+            variant: 'default',
             title: 'Some Scene Images Generated',
             description: 'Some scene images were generated, but others failed. You can try regenerating them individually.',
           });
@@ -556,26 +550,25 @@ export default function CreateGigPage() {
         clearTimeout(sceneTimerRef.current);
       }
 
-      if (currentPreviewSceneIndex < numScenes -1) { 
+      if (currentPreviewSceneIndex < numScenes -1) {
         sceneTimerRef.current = setTimeout(() => {
           setCurrentPreviewSceneIndex(prevIndex => prevIndex + 1);
         }, durationPerSceneMs);
       } else {
          sceneTimerRef.current = setTimeout(() => {
-            setIsPlayingPreview(false);
-        }, durationPerSceneMs + 2000); 
+            // Last scene has played, let voice finish then stop.
+            // If utteranceRef.current exists, its onend handler will set isPlayingPreview to false.
+            // If no utterance, set it here after a delay.
+            if (!utteranceRef.current) {
+                setIsPlayingPreview(false);
+            }
+        }, durationPerSceneMs + 500); // Add a little buffer for the last caption
       }
-    } else if (!isPlayingPreview) { 
-       if (sceneTimerRef.current) {
+    } else if (!isPlayingPreview && sceneTimerRef.current) {
         clearTimeout(sceneTimerRef.current);
-      }
-       if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
-         console.log("Cancelling speech because isPlayingPreview is false or modal closed.");
-         window.speechSynthesis.cancel();
-       }
     }
 
-    return () => { 
+    return () => {
       if (sceneTimerRef.current) {
         clearTimeout(sceneTimerRef.current);
       }
@@ -584,55 +577,71 @@ export default function CreateGigPage() {
 
 
   useEffect(() => {
-    if (!isPlayingPreview && typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
-      console.log("useEffect: isPlayingPreview became false, cancelling speech.");
-      window.speechSynthesis.cancel();
+    // This effect manages cleanup when isPlayingPreview becomes false
+    if (!isPlayingPreview) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+        console.log("useEffect [!isPlayingPreview]: cancelling speech.");
+        window.speechSynthesis.cancel();
+      }
       setCurrentSpokenText('');
+      if (sceneTimerRef.current) {
+        clearTimeout(sceneTimerRef.current);
+      }
     }
   }, [isPlayingPreview]);
 
 
   const startPreview = () => {
     if (!introVideoAssets || !introVideoAssets.script) return;
+    console.log("startPreview called");
 
     setCurrentPreviewSceneIndex(0);
     setIsPlayingPreview(true);
-    setIsPreviewModalOpen(true); 
-    setCurrentSpokenText(''); 
+    // isPreviewModalOpen will be set by Dialog onOpenChange
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window && introVideoAssets.script) {
         const speak = () => {
-            if (!isPlayingPreview && !isPreviewModalOpen) {
-                 console.log("Preview stopped before speak function execution.");
+            if (!isPlayingPreviewRef.current || !isPreviewModalOpenRef.current) { // Use refs for latest state in async/event context
+                 console.log("Preview stopped or modal closed before speak function execution.");
+                 window.speechSynthesis.cancel();
                  return;
             }
-            
-            window.speechSynthesis.cancel(); 
+
+            console.log("Attempting to speak...");
+            window.speechSynthesis.cancel(); // Cancel any previous speech
             const utterance = new SpeechSynthesisUtterance(introVideoAssets.script);
-            utteranceRef.current = utterance; 
+            utteranceRef.current = utterance;
 
             const voices = window.speechSynthesis.getVoices();
             if (voices.length > 0) {
                 let selectedVoice = voices.find(voice => voice.lang.startsWith('en') && voice.localService);
                 if (!selectedVoice) selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
-                if (!selectedVoice) selectedVoice = voices.find(voice => voice.localService);
-                if (!selectedVoice) selectedVoice = voices[0];
-                utterance.voice = selectedVoice;
-                if (utterance.voice) console.log('Using voice:', utterance.voice.name, utterance.voice.lang);
-                else console.warn('Could not find a suitable voice, using default.');
+                if (!selectedVoice && voices.some(voice => voice.localService)) selectedVoice = voices.find(voice => voice.localService);
+                if (!selectedVoice && voices.length > 0) selectedVoice = voices[0];
+
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                    console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+                } else {
+                    console.warn('Could not find a suitable voice, using browser default.');
+                }
             } else {
                 console.warn('No speech synthesis voices available at speak time.');
             }
-            
+
             utterance.onboundary = (event) => {
-                if (event.name === 'sentence' || event.name === 'word') { 
-                    const currentText = introVideoAssets.script.substring(event.charIndex);
-                    const sentenceEndMatch = currentText.match(/^[^.!?]+[.!?]+/);
-                    if (sentenceEndMatch) {
-                         setCurrentSpokenText(sentenceEndMatch[0]);
-                    } else {
-                        const fallbackText = introVideoAssets.script.substring(event.charIndex, Math.min(event.charIndex + 120, introVideoAssets.script.length));
-                        setCurrentSpokenText(fallbackText + (fallbackText.length < introVideoAssets.script.length - event.charIndex ? "..." : ""));
+                 if (event.name === 'sentence' || event.name === 'word') {
+                    if (introVideoAssets?.script) {
+                         const script = introVideoAssets.script;
+                         let endIndex = script.length;
+                         // Try to find the end of the current sentence
+                         const punctuationRegex = /[.!?]/g;
+                         punctuationRegex.lastIndex = event.charIndex; // Start search from current charIndex
+                         const match = punctuationRegex.exec(script);
+                         if (match) {
+                             endIndex = match.index + 1;
+                         }
+                         setCurrentSpokenText(script.substring(event.charIndex, endIndex).trim());
                     }
                 }
             };
@@ -640,59 +649,59 @@ export default function CreateGigPage() {
             utterance.onend = () => {
                 console.log('Speech finished.');
                 setCurrentSpokenText('');
-                if (introVideoAssets && currentPreviewSceneIndex >= introVideoAssets.visualPrompts.length -1) {
-                    setIsPlayingPreview(false);
-                }
+                // Check if it's the last scene. If so, the scene timer will handle isPlayingPreview.
+                // Otherwise, if speech finishes before scenes, let scenes continue.
+                 if (isPlayingPreviewRef.current && currentPreviewSceneIndexRef.current >= (introVideoAssets?.visualPrompts?.length ?? 0) -1) {
+                    setIsPlayingPreview(false); // Stop preview if speech ends on/after last scene
+                 }
             };
+
             utterance.onerror = (event) => {
                 console.error('SpeechSynthesisUtterance.onerror:', event);
                 toast({
                     variant: "destructive",
                     title: "Voiceover Error",
-                    description: `Could not play voiceover: ${event.error}. Please ensure your browser has voice services enabled and try again.`,
+                    description: `Could not play voiceover: ${event.error}. Please ensure browser voice services are enabled.`,
                 });
                 setCurrentSpokenText('Voiceover error.');
-                setIsPlayingPreview(false); 
+                setIsPlayingPreview(false);
             };
-            
-            setTimeout(() => {
-              if (isPlayingPreview && isPreviewModalOpen) { 
+
+            // Check again if still playing before speaking, modal might have closed quickly
+            if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) {
                 window.speechSynthesis.speak(utterance);
-                console.log("Attempting to speak script:", introVideoAssets.script.substring(0,50) + "...");
-              } else {
-                console.log("Preview stopped before speech could start.");
-                 window.speechSynthesis.cancel();
-              }
-            }, 100);
+                console.log("window.speechSynthesis.speak() called with:", introVideoAssets.script.substring(0,50) + "...");
+            } else {
+                console.log("Preview was stopped or modal closed just before calling .speak()");
+            }
         };
 
+        // Ensure voices are loaded
         if (window.speechSynthesis.getVoices().length === 0) {
             console.log("Voices not loaded yet, waiting for 'voiceschanged' event.");
             const voiceChangedHandler = () => {
                 console.log("Voices loaded via onvoiceschanged.");
-                 window.speechSynthesis.onvoiceschanged = null; 
-                if (isPlayingPreview && isPreviewModalOpen) speak(); 
+                window.speechSynthesis.removeEventListener('voiceschanged', voiceChangedHandler);
+                if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) speak();
             };
-            window.speechSynthesis.onvoiceschanged = voiceChangedHandler;
-            
+            window.speechSynthesis.addEventListener('voiceschanged', voiceChangedHandler);
+
+            // Fallback timer in case 'voiceschanged' doesn't fire reliably in all browsers
             setTimeout(() => {
-                 if (window.speechSynthesis.onvoiceschanged === voiceChangedHandler) { 
-                    window.speechSynthesis.onvoiceschanged = null; 
-                    console.log("Voice changed event fallback timer fired.");
-                    if (isPlayingPreview && isPreviewModalOpen) {
-                        if(window.speechSynthesis.getVoices().length > 0){
-                            speak();
-                        } else {
-                             console.warn("Voices still not loaded after fallback, TTS might not work.");
-                             toast({
-                                variant: "default",
-                                title: "Voice Services Loading",
-                                description: "Voice services might be slow to load. If audio doesn't play, please try again shortly.",
-                             });
-                        }
-                    }
-                 }
-            }, 1500);
+                window.speechSynthesis.removeEventListener('voiceschanged', voiceChangedHandler);
+                if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current && window.speechSynthesis.getVoices().length > 0) {
+                    console.log("Voice changed event fallback timer fired, voices found.");
+                    speak();
+                } else if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) {
+                    console.warn("Voices still not loaded after fallback, TTS might not work.");
+                     toast({
+                        variant: "default",
+                        title: "Voice Services Loading",
+                        description: "Voice services might be slow to load. If audio doesn't play, try again or check browser settings.",
+                     });
+                     // Potentially proceed without speech or show an error.
+                }
+            }, 1500); // 1.5 seconds fallback
 
         } else {
             console.log("Voices already available.");
@@ -702,19 +711,30 @@ export default function CreateGigPage() {
         toast({
             variant: "default",
             title: "Text-to-Speech Not Available",
-            description: "Your browser does not support speech synthesis, or no script is available.",
+            description: "Your browser does not support speech synthesis, or no script is available for voiceover.",
         });
     }
 };
 
+  // Refs to hold the latest state for async callbacks
+  const isPlayingPreviewRef = useRef(isPlayingPreview);
+  const isPreviewModalOpenRef = useRef(isPreviewModalOpen);
+  const currentPreviewSceneIndexRef = useRef(currentPreviewSceneIndex);
+
+  useEffect(() => {
+    isPlayingPreviewRef.current = isPlayingPreview;
+    isPreviewModalOpenRef.current = isPreviewModalOpen;
+    currentPreviewSceneIndexRef.current = currentPreviewSceneIndex;
+  }, [isPlayingPreview, isPreviewModalOpen, currentPreviewSceneIndex]);
+
 
   const closePreviewModal = () => {
     console.log("closePreviewModal called");
-    setIsPlayingPreview(false); 
-    setIsPreviewModalOpen(false);
-    setCurrentPreviewSceneIndex(0); 
-    setCurrentSpokenText('');
-    
+    setIsPlayingPreview(false); // This will trigger the useEffect for !isPlayingPreview
+    setIsPreviewModalOpen(false); // Dialog's onOpenChange will also call this.
+    setCurrentPreviewSceneIndex(0); // Reset scene index
+    setCurrentSpokenText(''); // Clear captions
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         console.log("Speech explicitly cancelled in closePreviewModal.");
@@ -724,6 +744,9 @@ export default function CreateGigPage() {
         utteranceRef.current.onend = null;
         utteranceRef.current.onerror = null;
         utteranceRef.current = null;
+    }
+     if (sceneTimerRef.current) {
+        clearTimeout(sceneTimerRef.current);
     }
   };
 
@@ -784,13 +807,13 @@ export default function CreateGigPage() {
     setIsLoading(true);
     try {
       await signOut();
-      toast({ 
+      toast({
         title: (
             <div className="flex items-center">
               <CheckCircle className="h-5 w-5 mr-2 text-primary" />
               Signed Out
             </div>
-          ), 
+          ),
         description: "You have been successfully signed out." });
       setCurrentUser(null);
       router.push('/auth');
@@ -891,7 +914,7 @@ export default function CreateGigPage() {
           font-style: italic;
         }
         .script-content {
-          white-space: pre-wrap; 
+          white-space: pre-wrap;
           font-family: var(--font-geist-sans);
           line-height: 1.7;
           color: hsl(var(--muted-foreground));
@@ -902,37 +925,38 @@ export default function CreateGigPage() {
         }
         .preview-image-container {
           width: 100%;
-          height: 100%; 
-          background-color: hsl(var(--black)); 
-          border-radius: 0.5rem;
+          height: 100%;
+          background-color: hsl(var(--black)); /* Ensure this var exists or use #000 */
+          border-radius: 0.5rem; /* Or sync with dialog's border-radius if desired */
           display: flex;
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          position: relative; 
+          position: relative;
         }
         .preview-image {
           width: 100%;
           height: 100%;
-          object-fit: contain; 
+          object-fit: contain; /* Ensures full image is visible, letterboxed if necessary */
         }
         .preview-caption-overlay {
           position: absolute;
-          bottom: 5%; 
+          bottom: 5%; /* Adjust as needed */
           left: 50%;
           transform: translateX(-50%);
-          width: 90%;
+          width: 90%; /* Or max-width and some padding */
           padding: 0.5rem 1rem;
-          background-color: rgba(0, 0, 0, 0.7); 
+          background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent black */
           color: white;
           text-align: center;
-          border-radius: 0.375rem; 
-          font-size: 1rem; 
+          border-radius: 0.375rem; /* Tailwind's rounded-md */
+          font-size: 1rem; /* Adjust as needed */
           line-height: 1.5;
-          max-height: 25%; 
-          overflow-y: auto;
-          opacity: 0; 
+          max-height: 25%; /* Limit height if captions are long */
+          overflow-y: auto; /* Scroll for long captions */
+          opacity: 0; /* Start hidden */
           transition: opacity 0.3s ease-in-out;
+          pointer-events: none; /* Don't intercept clicks */
         }
         .preview-caption-overlay.visible {
           opacity: 1;
@@ -1001,7 +1025,7 @@ export default function CreateGigPage() {
             />
             <p className="text-xs text-muted-foreground mt-1.5">Providing this helps the AI generate more tailored market strategies.</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button type="button" onClick={handleMarketAnalysis} variant="outline" className="w-full text-lg py-3.5 rounded-lg shadow-md hover:shadow-lg transition-shadow" disabled={anyActionLoading || !watchedMainKeyword || watchedMainKeyword.trim().length < 3}>
               {isAnalyzingMarket ? (
@@ -1054,7 +1078,7 @@ export default function CreateGigPage() {
             <h2 className="text-2xl font-bold text-center text-primary flex items-center justify-center">
                 <Brain className="mr-3 h-7 w-7" /> Market Analysis & Strategic Insights
             </h2>
-            
+
             <GigResultSection title="Simulated Top Competitor Profiles" icon={Users} contentClassName="p-4 sm:p-5">
                 <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-6 mt-2">
                     {marketAnalysisData.simulatedCompetitorProfiles.map((profile, index) => (
@@ -1322,7 +1346,7 @@ export default function CreateGigPage() {
                     <p className="text-xs text-muted-foreground mt-2">Create assets for a short (15-30s) intro video for your gig.</p>
                 </div>
                 )}
-                {isGeneratingIntroVideoAssets && !introVideoAssets && ( 
+                {isGeneratingIntroVideoAssets && !introVideoAssets && (
                     <div className="flex items-center justify-center py-6">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         <p className="ml-3 text-muted-foreground">AI is drafting your video blueprint...</p>
@@ -1381,7 +1405,7 @@ export default function CreateGigPage() {
                                         <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Generating image...
                                     </div>
                                 )}
-                                {generatedVideoSceneImages[index] === null && ( 
+                                {generatedVideoSceneImages[index] === null && (
                                      <div className="flex flex-col items-start">
                                         <p className="text-xs text-destructive mb-2">Image generation failed for this scene.</p>
                                         <Button
@@ -1404,19 +1428,19 @@ export default function CreateGigPage() {
                                             className="rounded-md border border-border object-cover aspect-video w-full max-w-[300px] h-auto"
                                         />
                                         <div className="flex gap-2 mt-2">
-                                            <Button 
+                                            <Button
                                                 onClick={() => handleGenerateVideoSceneImage(prompt, index)}
-                                                variant="outline" 
-                                                size="xs" 
+                                                variant="outline"
+                                                size="xs"
                                                 className="text-xs"
                                                 disabled={isRecreatingImage || isGeneratingIntroVideoAssets}
                                             >
                                                 <RefreshCw className="mr-1.5 h-3 w-3" /> Regenerate
                                             </Button>
-                                            <Button 
-                                                onClick={() => handleDownloadImage(generatedVideoSceneImages[index], index, 'video-scene')} 
-                                                variant="outline" 
-                                                size="xs" 
+                                            <Button
+                                                onClick={() => handleDownloadImage(generatedVideoSceneImages[index], index, 'video-scene')}
+                                                variant="outline"
+                                                size="xs"
                                                 className="text-xs"
                                                 disabled={anyActionLoading}
                                             >
@@ -1431,7 +1455,7 @@ export default function CreateGigPage() {
                     </div>
                     {allSceneImagesGenerated && introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
                         <div className="mt-6 text-center">
-                            <Button onClick={startPreview} disabled={anyActionLoading || isPlayingPreview}>
+                            <Button onClick={() => setIsPreviewModalOpen(true)} disabled={anyActionLoading || isPlayingPreview}>
                                 <PlayCircle className="mr-2 h-5 w-5" />
                                 Play Animated Preview with Voice
                             </Button>
@@ -1441,9 +1465,9 @@ export default function CreateGigPage() {
                 )}
             </GigResultSection>
             )}
-            
+
             {introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
-              <Dialog open={isPreviewModalOpen} onOpenChange={(isOpen) => { if (!isOpen) closePreviewModal(); else setIsPreviewModalOpen(true);}}>
+              <Dialog open={isPreviewModalOpen} onOpenChange={(isOpen) => { if (!isOpen) closePreviewModal(); else { setIsPreviewModalOpen(true); startPreview(); }}}>
                 <DialogContent className="w-[95vw] max-w-[95vw] h-[90vh] max-h-[90vh] p-0 flex flex-col bg-black text-white overflow-hidden">
                   <DialogHeader className="p-3 border-b border-gray-700 flex-shrink-0 bg-gray-900">
                     <div className="flex justify-between items-center">
@@ -1451,16 +1475,12 @@ export default function CreateGigPage() {
                             <PlayCircle className="w-5 h-5 mr-2 text-primary" />
                             Intro Video Preview
                         </DialogTitle>
-                        <DialogClose onClick={closePreviewModal} asChild>
-                            <Button variant="ghost" size="icon" className="rounded-full text-gray-400 hover:text-white hover:bg-gray-700"><X className="h-5 w-5"/></Button>
-                        </DialogClose>
+                        {/* The default DialogContent X button will be used. No need for custom DialogClose here. */}
                     </div>
-                     {isPlayingPreview && (
-                        <DialogDescription className="text-xs text-gray-400 flex items-center gap-2 pt-1">
-                            <span className="flex items-center"><Mic className="w-3.5 h-3.5 mr-1" /> Voiceover Active</span>
-                            <span className="flex items-center"><Captions className="w-3.5 h-3.5 mr-1" /> {currentSpokenText ? "Live Caption" : "Captions Loading..."}</span>
-                        </DialogDescription>
-                    )}
+                     <DialogDescription className="text-xs text-gray-400 flex items-center gap-2 pt-1">
+                         <span className="flex items-center"><Mic className="w-3.5 h-3.5 mr-1" /> Voiceover: {isPlayingPreview ? "Playing" : "Paused/Stopped"}</span>
+                         <span className="flex items-center"><Captions className="w-3.5 h-3.5 mr-1" /> {currentSpokenText ? "Live Caption" : "Captions will appear here"}</span>
+                     </DialogDescription>
                   </DialogHeader>
                   <div className="flex-grow flex items-center justify-center overflow-hidden relative p-0 m-0 bg-black">
                     {isPlayingPreview && typeof generatedVideoSceneImages[currentPreviewSceneIndex] === 'string' ? (
@@ -1488,14 +1508,13 @@ export default function CreateGigPage() {
                    <div className="p-3 border-t border-gray-700 flex justify-between items-center flex-shrink-0 bg-gray-900">
                         {introVideoAssets && (
                              <p className="text-xs text-gray-400">
-                                Scene {isPlayingPreview ? currentPreviewSceneIndex + 1 : '-' } of {introVideoAssets.visualPrompts.length}
+                                Scene {isPlayingPreviewRef.current ? currentPreviewSceneIndexRef.current + 1 : '-' } of {introVideoAssets.visualPrompts.length}
                                 {' | '}
                                 Duration: {introVideoAssets.suggestedDurationSeconds}s
                                 {' | '}
                                 Music: {introVideoAssets.audioSuggestion || "Not specified"} (manual add)
                             </p>
                         )}
-                        
                    </div>
                 </DialogContent>
               </Dialog>
@@ -1515,7 +1534,7 @@ export default function CreateGigPage() {
                     setCurrentMainKeyword(null);
                     setUserGigConcept('');
                     reset({ mainKeyword: '', userGigConcept: '' });
-                    closePreviewModal(); 
+                    closePreviewModal();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
@@ -1539,4 +1558,3 @@ export default function CreateGigPage() {
     </div>
   );
 }
-
