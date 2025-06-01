@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import type { GeneratePackageDetailsInput, GeneratePackageDetailsOutput } from '@/ai/schemas/gig-generation-schemas';
-import { GeneratePackageDetailsInputSchema, GeneratePackageDetailsOutputSchema } from '@/ai/schemas/gig-generation-schemas';
+import { GeneratePackageDetailsInputSchema, GeneratePackageDetailsOutputSchema, SinglePackageDetailSchema } from '@/ai/schemas/gig-generation-schemas';
 
 
 export async function generatePackageDetails(input: GeneratePackageDetailsInput): Promise<GeneratePackageDetailsOutput> {
@@ -62,19 +62,20 @@ const generatePackageDetailsFlow = ai.defineFlow(
     inputSchema: GeneratePackageDetailsInputSchema,
     outputSchema: GeneratePackageDetailsOutputSchema,
   },
-  async (input: GeneratePackageDetailsInput) => {
+  async (input: GeneratePackageDetailsInput): Promise<GeneratePackageDetailsOutput> => {
     const {output} = await generateDetailsPrompt(input);
     
-    const fallbackPackage = (price: number, titlePrefix: string) => ({
+    const fallbackPackage = (price: number, titlePrefix: string): z.infer<typeof SinglePackageDetailSchema> => ({
         title: `${titlePrefix} Package`,
         price: price,
-        description: "Essential services to get you started. Max 100 chars.",
+        description: "Essential services to get you started. Max 100 chars.", // Ensure fallback is compliant
         features: ["Core Service Delivery", "Standard Support"],
         deliveryTime: "3 Days",
         revisions: "1 Revision"
     });
 
-    if (!output) {
+    if (!output) { // If the entire output is missing
+        console.warn("AI output for package details was completely missing. Using fallbacks for all packages.");
         return {
             basic: fallbackPackage(input.basePrice, "Basic"),
             standard: fallbackPackage(input.standardPrice, "Standard"),
@@ -86,15 +87,14 @@ const generatePackageDetailsFlow = ai.defineFlow(
     const inputPrices = [input.basePrice, input.standardPrice, input.premiumPrice];
     const packageKeys = ['basic', 'standard', 'premium'] as const;
 
-    for (let i = 0; i < packagesToProcess.length; i++) {
-        let pkg = packagesToProcess[i];
+    for (let i = 0; i < packageKeys.length; i++) {
         const key = packageKeys[i];
+        let pkg = (output as any)[key] as z.infer<typeof SinglePackageDetailSchema> | undefined; // Type assertion
         
         if (!pkg) {
-            // If a whole package object is missing, create a fallback
             console.warn(`AI output for package '${key}' was missing. Using fallback.`);
             pkg = fallbackPackage(inputPrices[i], key.charAt(0).toUpperCase() + key.slice(1));
-            (output as any)[key] = pkg; // Assign back to output if it was entirely missing
+            (output as any)[key] = pkg; 
         }
 
         // Ensure prices match the input reference prices
@@ -102,26 +102,48 @@ const generatePackageDetailsFlow = ai.defineFlow(
 
         // Fallback for features if missing or empty
         if (!pkg.features || pkg.features.length === 0) {
-            pkg.features = [`Default feature for ${pkg.title || key}`];
-            if (pkg.features.length === 0) { // Should not happen with above, but defensive
-                 pkg.features.push(`Key deliverable for ${pkg.title || key}`);
-            }
+            console.warn(`Package '${key}' features were missing or empty. Adding default features.`);
+            pkg.features = [`Default feature for ${pkg.title || key}`, `Key deliverable for ${pkg.title || key}`];
+             if (pkg.features.length === 0) { 
+                 pkg.features.push(`Essential item for ${pkg.title || key}`);
+             }
         }
         
         // Fallback and Truncate description if necessary
         if (!pkg.description) {
+            console.warn(`Package '${key}' description was missing. Using fallback description.`);
             pkg.description = `High-quality ${key} service. Under 100 chars.`;
         }
+
         if (pkg.description.length > 100) {
-            console.warn(`Package '${key}' description was >100 chars (${pkg.description.length}). Truncating.`);
+            console.warn(`Package '${key}' description was >100 chars (${pkg.description.length}). Truncating to ensure compliance.`);
+            // Truncate to 97 characters and add "..." to make it exactly 100.
             pkg.description = pkg.description.substring(0, 97) + "...";
         }
-         if (pkg.description.length === 0) { // Ensure not empty after potential truncation logic error
+        
+        // Ensure description is not empty after potential truncation or if it was initially empty
+         if (pkg.description.length === 0) {
+            console.warn(`Package '${key}' description was empty. Setting a default.`);
             pkg.description = "Concise service overview.";
+        }
+
+        // Ensure other required fields have fallbacks if somehow missing from AI output
+        if (!pkg.title) {
+            console.warn(`Package '${key}' title was missing. Setting a default.`);
+            pkg.title = `${key.charAt(0).toUpperCase() + key.slice(1)} Default Title`;
+        }
+        if (!pkg.deliveryTime) {
+            console.warn(`Package '${key}' deliveryTime was missing. Setting a default.`);
+            pkg.deliveryTime = "N/A";
+        }
+        if (!pkg.revisions) {
+            console.warn(`Package '${key}' revisions were missing. Setting a default.`);
+            pkg.revisions = "N/A";
         }
     }
     
-    return output;
+    // Explicitly cast the validated and processed output before returning
+    return output as GeneratePackageDetailsOutput;
   }
 );
 
