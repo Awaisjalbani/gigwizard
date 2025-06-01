@@ -42,12 +42,13 @@ import {
   Award,
   Handshake,
   Brain,
-  Video, // Added Video icon
-  Clapperboard, // Added Clapperboard icon
-  Music2, // Added Music2 icon
-  Clock, // Added Clock icon
-  Megaphone, // Added Megaphone icon
-  Wand2, // Added Wand2 icon
+  Video,
+  Clapperboard,
+  Music2,
+  Clock,
+  Megaphone,
+  Wand2,
+  PlayCircle, // Added for Play Preview button
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -60,9 +61,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'; // Added Dialog components
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction, generateIntroVideoAssetsAction } from '../actions'; // Added generateIntroVideoAssetsAction
-import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile, GenerateIntroVideoAssetsOutput } from '@/ai/schemas/gig-generation-schemas'; // Added GenerateIntroVideoAssetsOutput
+import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction, generateIntroVideoAssetsAction } from '../actions';
+import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile, GenerateIntroVideoAssetsOutput } from '@/ai/schemas/gig-generation-schemas';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
 
@@ -95,7 +97,12 @@ export default function CreateGigPage() {
   const [introVideoAssets, setIntroVideoAssets] = useState<GenerateIntroVideoAssetsOutput | null>(null);
   const [isGeneratingIntroVideoAssets, setIsGeneratingIntroVideoAssets] = useState(false);
   const [introVideoAssetsError, setIntroVideoAssetsError] = useState<string | null>(null);
-  const [generatedVideoSceneImages, setGeneratedVideoSceneImages] = useState<{[key: number]: string}>({});
+  const [generatedVideoSceneImages, setGeneratedVideoSceneImages] = useState<{[key: number]: string | 'loading' | null}>({});
+
+  // State for Animated Preview Player
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [currentPreviewSceneIndex, setCurrentPreviewSceneIndex] = useState(0);
 
 
   useEffect(() => {
@@ -152,7 +159,7 @@ export default function CreateGigPage() {
     setIsAnalyzingMarket(true);
     setMarketAnalysisData(null);
     setMarketAnalysisError(null);
-    setGigData(null);
+    setGigData(null); // Reset gig data if starting a new analysis
     setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
     setGeneratedVideoSceneImages({});
@@ -203,28 +210,31 @@ export default function CreateGigPage() {
     setGigData(null);
     setCurrentMainKeyword(null);
     setProgress(0);
-    setIntroVideoAssets(null);
+    setIntroVideoAssets(null); // Reset video assets when generating a new gig
     setIntroVideoAssetsError(null);
     setGeneratedVideoSceneImages({});
+    setIsPreviewModalOpen(false);
+
 
     const progressInterval = setInterval(() => {
        setProgress((prev) => {
-        if (prev >= 95 && !gigData) {
+        if (prev >= 95 && !gigData) { // If stuck at 95% and gigData isn't there yet, hold
           return 95;
         }
-        if (prev >= 100) {
+        if (prev >= 100) { // If gigData is received or error, progress to 100
             clearInterval(progressInterval);
             return 100;
         }
+        // Dynamic increment: faster at start, slower towards end
         const increment = gigData ? 10 : (prev < 30 ? 5 : (prev < 70 ? 2 : 1));
-        return Math.min(prev + increment, 99);
+        return Math.min(prev + increment, 99); // Cap at 99 until data arrives
       });
     }, 300);
 
     try {
       const result = await generateFullGig(data.mainKeyword, marketAnalysisData || undefined);
-      clearInterval(progressInterval);
-      setProgress(100);
+      clearInterval(progressInterval); // Stop interval once result is back
+      setProgress(100); // Set to 100%
 
       if (result.error) {
         toast({
@@ -243,11 +253,12 @@ export default function CreateGigPage() {
         });
       }
     } catch (error: any) {
-      clearInterval(progressInterval);
+      clearInterval(progressInterval); // Ensure interval is cleared on error
       setProgress(100);
       let errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred.';
+      // Specific error handling for common issues
       if (error.message && (error.message.includes("auth/unauthorized-domain") || error.message.includes("FIREBASE AUTH ERROR"))) {
-        errorMessage = error.message;
+        errorMessage = error.message; // Use the more descriptive error message from firebase.ts
       } else if (error.message && (error.message.includes("503") || error.message.includes("overloaded") || error.message.includes("service unavailable") || error.message.includes("model is overloaded") || error.message.includes("failed_precondition"))) {
         errorMessage = "The AI service is currently overloaded or unavailable. This is a temporary issue. Please try again in a few moments.";
       }
@@ -260,7 +271,7 @@ export default function CreateGigPage() {
       setGigData({ error: errorMessage });
       setCurrentMainKeyword(null);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Ensure loading is set to false in all cases
     }
   };
 
@@ -319,6 +330,7 @@ export default function CreateGigPage() {
     }
 
     setIsRecreatingImage(true);
+    let generatedUris: string[] | null = null;
     try {
       const result = await regenerateGigImageAction({ imagePrompts: prompts });
       if (result.imageDataUris && result.imageDataUris.length > 0) {
@@ -329,7 +341,7 @@ export default function CreateGigPage() {
           title: 'Images Recreated!',
           description: 'New gig images have been generated.',
         });
-        return result.imageDataUris;
+        generatedUris = result.imageDataUris;
       } else if (result.error) {
          toast({
           variant: 'destructive',
@@ -346,7 +358,7 @@ export default function CreateGigPage() {
     } finally {
       setIsRecreatingImage(false);
     }
-    return null;
+    return generatedUris;
   };
 
   const handleRegenerateTitle = async () => {
@@ -389,6 +401,25 @@ export default function CreateGigPage() {
     }
   };
 
+  const handleGenerateVideoSceneImage = async (prompt: string, sceneIndex: number, isRetry = false) => {
+    setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: 'loading'}));
+    const imageDataUris = await handleRecreateImage([prompt]); // Pass prompt as an array
+    if (imageDataUris && imageDataUris[0]) {
+        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: imageDataUris[0]}));
+        return imageDataUris[0];
+    } else {
+        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: null})); // Mark as failed if no URI
+        if (!isRetry) { // Avoid toast for initial auto-generation failures, only for manual retries
+          toast({
+              variant: 'destructive',
+              title: `Scene Image Failed (Scene ${sceneIndex + 1})`,
+              description: 'Could not generate image for this scene prompt.',
+          });
+        }
+        return null;
+    }
+  };
+
   const handleGenerateIntroVideoAssets = async () => {
     if (!gigData || !gigData.title || !gigData.description || !currentMainKeyword) {
       toast({
@@ -401,14 +432,14 @@ export default function CreateGigPage() {
     setIsGeneratingIntroVideoAssets(true);
     setIntroVideoAssets(null);
     setIntroVideoAssetsError(null);
-    setGeneratedVideoSceneImages({});
+    setGeneratedVideoSceneImages({}); // Reset images
 
     try {
       const result = await generateIntroVideoAssetsAction({
         mainKeyword: currentMainKeyword,
         gigTitle: gigData.title,
         gigDescription: gigData.description,
-        targetAudience: marketAnalysisData?.targetAudienceHint || userGigConcept, // Example, adjust as needed
+        targetAudience: marketAnalysisData?.winningApproachSummary || userGigConcept, // Use market analysis if available
       });
 
       if ('error' in result) {
@@ -423,8 +454,35 @@ export default function CreateGigPage() {
         setGigData(prev => ({...prev!, introVideoAssets: result}));
         toast({
           title: 'Intro Video Blueprint Generated!',
-          description: 'Assets for your gig intro video are ready.',
+          description: 'Attempting to generate scene images automatically...',
         });
+
+        // Auto-generate scene images
+        const imageGenPromises = result.visualPrompts.map((prompt, index) =>
+          handleGenerateVideoSceneImage(prompt, index, true) // Pass true for isRetry to suppress individual failure toasts
+        );
+        const images = await Promise.allSettled(imageGenPromises);
+        const allSucceeded = images.every(imgResult => imgResult.status === 'fulfilled' && imgResult.value !== null);
+        const anySucceeded = images.some(imgResult => imgResult.status === 'fulfilled' && imgResult.value !== null);
+
+        if (allSucceeded) {
+          toast({
+            title: 'All Scene Images Generated!',
+            description: 'Visuals for your video blueprint are ready.',
+          });
+        } else if (anySucceeded) {
+           toast({
+            variant: 'default', // Not destructive, just a warning
+            title: 'Some Scene Images Generated',
+            description: 'Some scene images were generated, but others failed. You can try regenerating them individually.',
+          });
+        } else {
+           toast({
+            variant: 'destructive',
+            title: 'Scene Image Generation Failed',
+            description: 'Could not automatically generate images for the video scenes. Please try regenerating them individually.',
+          });
+        }
       }
     } catch (error: any) {
       const msg = error.message || 'An unexpected error occurred during video asset generation.';
@@ -439,12 +497,45 @@ export default function CreateGigPage() {
     }
   };
 
-  const handleGenerateVideoSceneImage = async (prompt: string, sceneIndex: number) => {
-    const imageDataUris = await handleRecreateImage([prompt]); // Pass prompt as an array
-    if (imageDataUris && imageDataUris[0]) {
-        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: imageDataUris[0]}));
+
+  // Animated Preview Player Logic
+  useEffect(() => {
+    let sceneTimer: NodeJS.Timeout;
+    if (isPlayingPreview && isPreviewModalOpen && introVideoAssets && introVideoAssets.visualPrompts.length > 0) {
+      const numScenes = introVideoAssets.visualPrompts.length;
+      const totalDurationMs = (introVideoAssets.suggestedDurationSeconds || 20) * 1000; // Default to 20s
+      const durationPerSceneMs = Math.max(1000, totalDurationMs / numScenes); // Min 1s per scene
+
+      if (currentPreviewSceneIndex < numScenes -1) {
+        sceneTimer = setTimeout(() => {
+          setCurrentPreviewSceneIndex(prevIndex => prevIndex + 1);
+        }, durationPerSceneMs);
+      } else {
+        // Last scene, stop playing after its duration
+         sceneTimer = setTimeout(() => {
+            setIsPlayingPreview(false);
+            // Optionally close modal or offer replay:
+            // setIsPreviewModalOpen(false); 
+            // setCurrentPreviewSceneIndex(0);
+        }, durationPerSceneMs);
+      }
     }
+    return () => clearTimeout(sceneTimer);
+  }, [isPlayingPreview, currentPreviewSceneIndex, isPreviewModalOpen, introVideoAssets]);
+
+  const startPreview = () => {
+    setCurrentPreviewSceneIndex(0);
+    setIsPlayingPreview(true);
+    setIsPreviewModalOpen(true);
   };
+
+  const closePreviewModal = () => {
+    setIsPlayingPreview(false);
+    setIsPreviewModalOpen(false);
+    setCurrentPreviewSceneIndex(0); // Reset for next play
+  };
+
+  const allSceneImagesGenerated = introVideoAssets && introVideoAssets.visualPrompts.every((_, index) => typeof generatedVideoSceneImages[index] === 'string');
 
 
   const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => (
@@ -511,8 +602,8 @@ export default function CreateGigPage() {
     }
   };
 
- const handleDownloadImage = (imageDataUri: string | undefined, index: number, type: 'hero' | 'sample' | 'video-scene') => {
-    if (imageDataUri) {
+ const handleDownloadImage = (imageDataUri: string | undefined | null, index: number, type: 'hero' | 'sample' | 'video-scene') => {
+    if (typeof imageDataUri === 'string') {
       const link = document.createElement('a');
       link.href = imageDataUri;
       const mimeType = imageDataUri.substring(imageDataUri.indexOf(':') + 1, imageDataUri.indexOf(';'));
@@ -609,6 +700,22 @@ export default function CreateGigPage() {
           padding: 1rem;
           border-radius: 0.5rem;
           box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05);
+        }
+        .preview-image-container {
+          width: 100%;
+          max-width: 640px; /* Or your desired max width */
+          aspect-ratio: 16 / 9;
+          background-color: hsl(var(--muted));
+          border-radius: 0.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+        .preview-image {
+          width: 100%;
+          height: 100%;
+          object-fit: contain; /* Use 'cover' if you prefer to fill, 'contain' to show whole image */
         }
       `}</style>
       <header className="w-full max-w-5xl mb-10 p-4 rounded-lg bg-card shadow-md">
@@ -1002,20 +1109,23 @@ export default function CreateGigPage() {
                     <p className="text-xs text-muted-foreground mt-2">Create assets for a short (15-30s) intro video for your gig.</p>
                 </div>
                 )}
-                {isGeneratingIntroVideoAssets && (
-                <div className="flex items-center justify-center py-6">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-3 text-muted-foreground">AI is drafting your video blueprint...</p>
-                </div>
+                {isGeneratingIntroVideoAssets && !introVideoAssets && ( // Show initial blueprint loading
+                    <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="ml-3 text-muted-foreground">AI is drafting your video blueprint...</p>
+                    </div>
                 )}
                 {introVideoAssetsError && !isGeneratingIntroVideoAssets && (
                 <Alert variant="destructive" className="my-4">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle>Video Blueprint Error</AlertTitle>
                     <AlertDescription>{introVideoAssetsError}</AlertDescription>
+                     <Button onClick={handleGenerateIntroVideoAssets} variant="outline" size="sm" className="mt-3" disabled={anyActionLoading}>
+                        <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+                    </Button>
                 </Alert>
                 )}
-                {introVideoAssets && !isGeneratingIntroVideoAssets && (
+                {introVideoAssets && !introVideoAssetsError && (
                 <div className="space-y-6 p-4 bg-secondary rounded-lg shadow-inner">
                     <div>
                     <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Clapperboard className="w-5 h-5 mr-2" />Video Concept:</h4>
@@ -1040,50 +1150,128 @@ export default function CreateGigPage() {
                         </div>
                     )}
                     <div>
-                    <h4 className="text-md font-semibold text-primary mb-2 flex items-center"><ImageIcon className="w-5 h-5 mr-2" />Visual Scene Prompts:</h4>
-                    <div className="space-y-4">
-                        {introVideoAssets.visualPrompts.map((prompt, index) => (
-                        <Card key={index} className="bg-card p-3 shadow-sm">
-                            <p className="text-xs italic text-muted-foreground mb-2">Prompt {index + 1}: "{prompt}"</p>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleGenerateVideoSceneImage(prompt, index)}
-                                disabled={isRecreatingImage || anyActionLoading}
-                                className="w-full sm:w-auto text-xs"
-                            >
-                            {isRecreatingImage && !generatedVideoSceneImages[index] ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
-                            Generate Image for Scene {index + 1}
-                            </Button>
-                            {generatedVideoSceneImages[index] && (
-                                <div className="mt-3 flex flex-col items-center">
-                                    <NextImage
-                                        src={generatedVideoSceneImages[index]}
-                                        alt={`Generated image for video scene ${index + 1}`}
-                                        width={300}
-                                        height={200}
-                                        className="rounded-md border border-border object-cover aspect-video"
-                                        data-ai-hint="video scene visual"
-                                    />
-                                    <Button 
-                                        onClick={() => handleDownloadImage(generatedVideoSceneImages[index], index, 'video-scene')} 
-                                        variant="outline" 
-                                        size="xs" 
-                                        className="mt-2 text-xs"
-                                        disabled={anyActionLoading}
-                                    >
-                                        <Download className="mr-1.5 h-3 w-3" />
-                                        Download Scene {index + 1}
-                                    </Button>
-                                </div>
+                        <h4 className="text-md font-semibold text-primary mb-2 flex items-center">
+                            <ImageIcon className="w-5 h-5 mr-2" />Visual Scene Assets:
+                            {isGeneratingIntroVideoAssets && Object.values(generatedVideoSceneImages).some(s => s === 'loading') && (
+                                <span className="ml-2 text-xs text-muted-foreground flex items-center">
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    Generating images ({Object.values(generatedVideoSceneImages).filter(s => typeof s === 'string').length}/{introVideoAssets.visualPrompts.length})...
+                                </span>
                             )}
-                        </Card>
-                        ))}
+                        </h4>
+                        <div className="space-y-4">
+                            {introVideoAssets.visualPrompts.map((prompt, index) => (
+                            <Card key={index} className="bg-card p-3 shadow-sm">
+                                <p className="text-xs italic text-muted-foreground mb-2">Prompt for Scene {index + 1}: "{prompt}"</p>
+                                {generatedVideoSceneImages[index] === 'loading' && (
+                                    <div className="flex items-center text-sm text-muted-foreground">
+                                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Generating image...
+                                    </div>
+                                )}
+                                {generatedVideoSceneImages[index] === null && ( // Failed state
+                                     <div className="flex flex-col items-start">
+                                        <p className="text-xs text-destructive mb-2">Image generation failed for this scene.</p>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleGenerateVideoSceneImage(prompt, index)}
+                                            disabled={isRecreatingImage || isGeneratingIntroVideoAssets}
+                                            className="w-full sm:w-auto text-xs"
+                                        >
+                                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                                            Retry Scene Image {index + 1}
+                                        </Button>
+                                    </div>
+                                )}
+                                {typeof generatedVideoSceneImages[index] === 'string' && (
+                                    <div className="mt-3 flex flex-col items-center">
+                                        <NextImage
+                                            src={generatedVideoSceneImages[index] as string}
+                                            alt={`Generated image for video scene ${index + 1}`}
+                                            width={300}
+                                            height={200}
+                                            className="rounded-md border border-border object-cover aspect-video"
+                                            data-ai-hint="video scene visual"
+                                        />
+                                        <div className="flex gap-2 mt-2">
+                                            <Button 
+                                                onClick={() => handleGenerateVideoSceneImage(prompt, index)}
+                                                variant="outline" 
+                                                size="xs" 
+                                                className="text-xs"
+                                                disabled={isRecreatingImage || isGeneratingIntroVideoAssets}
+                                            >
+                                                <RefreshCw className="mr-1.5 h-3 w-3" /> Regenerate
+                                            </Button>
+                                            <Button 
+                                                onClick={() => handleDownloadImage(generatedVideoSceneImages[index], index, 'video-scene')} 
+                                                variant="outline" 
+                                                size="xs" 
+                                                className="text-xs"
+                                                disabled={anyActionLoading}
+                                            >
+                                                <Download className="mr-1.5 h-3 w-3" /> Download
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </Card>
+                            ))}
+                        </div>
                     </div>
-                    </div>
+                    {allSceneImagesGenerated && introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
+                        <div className="mt-6 text-center">
+                            <Button onClick={startPreview} disabled={anyActionLoading || isPlayingPreview}>
+                                <PlayCircle className="mr-2 h-5 w-5" />
+                                Play Animated Preview
+                            </Button>
+                        </div>
+                    )}
                 </div>
                 )}
             </GigResultSection>
+            )}
+            
+            {/* Animated Preview Player Modal */}
+            {introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
+              <Dialog open={isPreviewModalOpen} onOpenChange={(isOpen) => { if (!isOpen) closePreviewModal(); else setIsPreviewModalOpen(true);}}>
+                <DialogContent className="sm:max-w-2xl md:max-w-3xl lg:max-w-4xl p-0 overflow-hidden">
+                  <DialogHeader className="p-4 border-b">
+                    <DialogTitle className="text-lg">Intro Video Animated Preview</DialogTitle>
+                    <DialogClose onClick={closePreviewModal} />
+                  </DialogHeader>
+                  <div className="p-4 md:p-6 flex flex-col items-center justify-center bg-muted min-h-[300px] md:min-h-[450px]">
+                    {isPlayingPreview && typeof generatedVideoSceneImages[currentPreviewSceneIndex] === 'string' ? (
+                      <div className="preview-image-container">
+                        <NextImage
+                          src={generatedVideoSceneImages[currentPreviewSceneIndex] as string}
+                          alt={`Preview Scene ${currentPreviewSceneIndex + 1}`}
+                          width={640}
+                          height={360}
+                          className="preview-image"
+                          data-ai-hint="video preview scene"
+                          priority // Prioritize loading current scene image
+                        />
+                      </div>
+                    ) : (
+                      <div className="preview-image-container">
+                        <ImageIcon className="w-24 h-24 text-muted-foreground/30" />
+                         <p className="mt-2 text-muted-foreground">
+                          {isPlayingPreview ? `Loading scene ${currentPreviewSceneIndex + 1}...` : "Preview will play here."}
+                        </p>
+                      </div>
+                    )}
+                    {isPlayingPreview && introVideoAssets && (
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            Scene {currentPreviewSceneIndex + 1} of {introVideoAssets.visualPrompts.length}
+                        </p>
+                    )}
+                  </div>
+                   <div className="p-4 border-t flex justify-end">
+                        <Button variant="outline" onClick={closePreviewModal}>Close Preview</Button>
+                   </div>
+                </DialogContent>
+              </Dialog>
             )}
 
 
@@ -1100,6 +1288,9 @@ export default function CreateGigPage() {
                     setCurrentMainKeyword(null);
                     setUserGigConcept('');
                     reset({ mainKeyword: '', userGigConcept: '' });
+                    setIsPreviewModalOpen(false);
+                    setIsPlayingPreview(false);
+                    setCurrentPreviewSceneIndex(0);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
@@ -1123,3 +1314,4 @@ export default function CreateGigPage() {
     </div>
   );
 }
+
