@@ -149,7 +149,7 @@ export default function CreateGigPage() {
         setCurrentMainKeyword(data.mainKeyword);
         toast({
           title: 'Gig Generation Complete!',
-          description: 'Your Fiverr gig components are ready.',
+          description: 'Your GigWizard components are ready.',
         });
       }
     } catch (error: any) {
@@ -308,11 +308,11 @@ export default function CreateGigPage() {
 
         {pkg.features && pkg.features.length > 0 && (
           <div className="mt-3 pt-3 border-t border-border/30">
-            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center">
-              <ListChecks className="w-3.5 h-3.5 mr-1.5 text-primary/80" />
+            <h4 className="text-xs font-semibold text-primary mb-1.5 flex items-center">
+              <ListChecks className="w-3.5 h-3.5 mr-1.5 text-primary" />
               Key Features:
             </h4>
-            <ul className="list-none pl-0 text-xs text-muted-foreground space-y-1 custom-scrollbar max-h-24 overflow-y-auto">
+            <ul className="list-none pl-0 text-xs text-muted-foreground space-y-1">
               {pkg.features.map((feature, idx) => (
                 <li key={idx} className="flex items-start">
                   <span className="text-primary/90 mr-1.5 mt-0.5">✔</span>
@@ -647,15 +647,14 @@ export default function CreateGigPage() {
                                 <h4 className="text-md font-semibold text-muted-foreground mb-3">
                                     Main Hero Image
                                 </h4>
-                                <div className="w-full max-w-2xl mx-auto">
+                                <div className="w-full max-w-md mx-auto">
                                     <NextImage
                                         src={gigData.imageDataUris[0]}
                                         alt="AI Generated Gig Hero Image"
-                                        width={1280}
-                                        height={769}
-                                        className="rounded-lg border-2 border-border shadow-lg object-contain w-full h-auto aspect-[1280/769]"
+                                        width={600}
+                                        height={400}
+                                        className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
                                         data-ai-hint="professional service hero"
-                                        priority
                                     />
                                 </div>
                                 <Button onClick={() => handleDownloadImage(gigData.imageDataUris && gigData.imageDataUris[0], 0, 'hero')} variant="outline" size="sm" className="mt-4 shadow-md" disabled={anyActionLoading}>
@@ -665,9 +664,9 @@ export default function CreateGigPage() {
                             </div>
                         )}
 
-                        {/* Sample Images - Side by Side */}
+                        {/* Sample Images */}
                         {gigData.imageDataUris.length > 1 && (
-                            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-6">
+                             <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-6">
                                 {gigData.imageDataUris.slice(1).map((uri, index) => (
                                     <div key={`sample-image-container-${index}`} className="flex flex-col items-center w-full">
                                         <h4 className="text-md font-semibold text-muted-foreground mb-3">
@@ -679,7 +678,7 @@ export default function CreateGigPage() {
                                                 alt={`AI Generated Gig Sample Image ${index + 1}`}
                                                 width={600}
                                                 height={400}
-                                                className="rounded-lg border-2 border-border shadow-lg object-contain w-full h-auto aspect-[3/2]"
+                                                className="rounded-lg border-2 border-border shadow-lg object-cover w-full h-auto aspect-[3/2]"
                                                 data-ai-hint="professional service sample"
                                             />
                                         </div>
