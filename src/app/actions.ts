@@ -11,6 +11,7 @@ import { suggestRequirements } from '@/ai/flows/suggest-requirements';
 import { generateGigImage } from '@/ai/flows/generate-gig-image';
 import { regenerateGigTitle } from '@/ai/flows/regenerate-gig-title';
 import { analyzeMarketAndSuggestStrategy } from '@/ai/flows/analyze-market-strategy';
+import { generateIntroVideoAssets } from '@/ai/flows/generate-intro-video-assets';
 
 
 import type {
@@ -25,7 +26,9 @@ import type {
     RegenerateGigTitleOutput,
     AnalyzeMarketStrategyInput,
     AnalyzeMarketStrategyOutput,
-    GenerateTitleDescImgPromptInput
+    GenerateTitleDescImgPromptInput,
+    GenerateIntroVideoAssetsInput,
+    GenerateIntroVideoAssetsOutput
 } from '@/ai/schemas/gig-generation-schemas';
 
 
@@ -46,6 +49,7 @@ export interface GigData {
   imagePrompts?: string[];
   error?: string;
   marketAnalysis?: AnalyzeMarketStrategyOutput;
+  introVideoAssets?: GenerateIntroVideoAssetsOutput; // Added for intro video
 }
 
 const getSimulatedTopGigInsights = (keyword: string, category: string, subcategory: string): string => {
@@ -266,6 +270,33 @@ export async function analyzeMarketStrategyAction(
             errorMessage = "The AI service for market analysis is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
         } else if (lowerMessage.includes("invalid_argument") && lowerMessage.includes("schema validation failed")) {
              errorMessage = `Schema validation failed for market analysis. This often means the AI's response didn't match the expected format. Details: ${e.message.substring(0, 200)}...`;
+        }
+    }
+    return { error: errorMessage };
+  }
+}
+
+export async function generateIntroVideoAssetsAction(
+  input: GenerateIntroVideoAssetsInput
+): Promise<GenerateIntroVideoAssetsOutput | { error: string }> {
+  if (!input.mainKeyword || !input.gigTitle || !input.gigDescription) {
+    return { error: 'Main keyword, gig title, and gig description are required to generate video assets.' };
+  }
+  try {
+    const result = await generateIntroVideoAssets(input);
+    if (!result) {
+        throw new Error("AI failed to return intro video assets data.");
+    }
+    return result;
+  } catch (e: any) {
+    console.error("Error generating intro video assets:", e);
+    let errorMessage = (e instanceof Error) ? e.message : 'Failed to generate intro video assets due to an unknown error.';
+     if (e.message) {
+        const lowerMessage = e.message.toLowerCase();
+        if (lowerMessage.includes("503") || lowerMessage.includes("overloaded") || lowerMessage.includes("service unavailable") || lowerMessage.includes("model is overloaded") || lowerMessage.includes("failed_precondition")) {
+            errorMessage = "The AI service for video asset generation is currently experiencing high load or is temporarily unavailable. Please try again in a few moments.";
+        } else if (lowerMessage.includes("invalid_argument") && lowerMessage.includes("schema validation failed")) {
+             errorMessage = `Schema validation failed for video assets. This often means the AI's response didn't match the expected format. Details: ${e.message.substring(0, 200)}...`;
         }
     }
     return { error: errorMessage };

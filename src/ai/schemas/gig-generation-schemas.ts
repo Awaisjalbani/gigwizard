@@ -232,3 +232,22 @@ export const AnalyzeMarketStrategyOutputSchema = z.object({
   winningApproachSummary: z.string().describe('A unique summary of a winning approach or core value proposition the user could adopt for their gig. Must be varied per generation.'),
 });
 export type AnalyzeMarketStrategyOutput = z.infer<typeof AnalyzeMarketStrategyOutputSchema>;
+
+// --- Intro Video Assets Schemas ---
+export const GenerateIntroVideoAssetsInputSchema = z.object({
+  mainKeyword: z.string().describe('The main keyword for the Fiverr gig.'),
+  gigTitle: z.string().describe('The title of the Fiverr gig.'),
+  gigDescription: z.string().describe('The full description of the gig for context.'),
+  targetAudience: z.string().optional().describe('Brief description of the target audience, if known.'),
+});
+export type GenerateIntroVideoAssetsInput = z.infer<typeof GenerateIntroVideoAssetsInputSchema>;
+
+export const GenerateIntroVideoAssetsOutputSchema = z.object({
+  videoConcept: z.string().describe('A short, catchy concept or theme for the intro video (e.g., "Quick Solution Showcase," "Expertise Highlight").'),
+  script: z.string().describe('A brief voiceover script or key talking points for the video (approx. 15-30 seconds worth). Should be engaging and concise.'),
+  visualPrompts: z.array(z.string().describe('A detailed prompt for an AI image generator to create a key visual for a scene. Each prompt should aim for a professional, relevant image.')).min(2).max(4).describe('An array of 2-4 detailed image prompts for key scenes in the video.'),
+  audioSuggestion: z.string().describe('Suggestion for background music style or sound effects (e.g., "Upbeat and modern electronic music," "Calm and professional background music with subtle sound effects").'),
+  suggestedDurationSeconds: z.number().min(10).max(60).describe('Suggested total duration for the intro video in seconds (e.g., 15, 30).'),
+  callToAction: z.string().optional().describe('A suggested call to action for the end of the video (e.g., "Order Now!", "Message Me For Details!").')
+});
+export type GenerateIntroVideoAssetsOutput = z.infer<typeof GenerateIntroVideoAssetsOutputSchema>;

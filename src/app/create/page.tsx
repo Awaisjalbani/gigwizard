@@ -42,6 +42,12 @@ import {
   Award,
   Handshake,
   Brain,
+  Video, // Added Video icon
+  Clapperboard, // Added Clapperboard icon
+  Music2, // Added Music2 icon
+  Clock, // Added Clock icon
+  Megaphone, // Added Megaphone icon
+  Wand2, // Added Wand2 icon
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -55,8 +61,8 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { GigResultSection } from '@/components/fiverr-ace/GigResultSection';
-import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction } from '../actions';
-import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile } from '@/ai/schemas/gig-generation-schemas';
+import { generateFullGig, type GigData, refreshSearchTagsAction, regenerateGigImageAction, regenerateTitleAction, analyzeMarketStrategyAction, generateIntroVideoAssetsAction } from '../actions'; // Added generateIntroVideoAssetsAction
+import type { SinglePackageDetail, SearchTagAnalytics, AnalyzeMarketStrategyOutput, HypotheticalCompetitorProfile, GenerateIntroVideoAssetsOutput } from '@/ai/schemas/gig-generation-schemas'; // Added GenerateIntroVideoAssetsOutput
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from '@/lib/firebase';
 
@@ -76,7 +82,7 @@ export default function CreateGigPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [currentMainKeyword, setCurrentMainKeyword] = useState<string | null>(null);
-  const [userGigConcept, setUserGigConcept] = useState<string>(''); // For the new textarea
+  const [userGigConcept, setUserGigConcept] = useState<string>('');
 
   const [isRefreshingTags, setIsRefreshingTags] = useState(false);
   const [isRecreatingImage, setIsRecreatingImage] = useState(false);
@@ -85,6 +91,11 @@ export default function CreateGigPage() {
   const [marketAnalysisData, setMarketAnalysisData] = useState<AnalyzeMarketStrategyOutput | null>(null);
   const [isAnalyzingMarket, setIsAnalyzingMarket] = useState(false);
   const [marketAnalysisError, setMarketAnalysisError] = useState<string | null>(null);
+
+  const [introVideoAssets, setIntroVideoAssets] = useState<GenerateIntroVideoAssetsOutput | null>(null);
+  const [isGeneratingIntroVideoAssets, setIsGeneratingIntroVideoAssets] = useState(false);
+  const [introVideoAssetsError, setIntroVideoAssetsError] = useState<string | null>(null);
+  const [generatedVideoSceneImages, setGeneratedVideoSceneImages] = useState<{[key: number]: string}>({});
 
 
   useEffect(() => {
@@ -110,11 +121,11 @@ export default function CreateGigPage() {
   const {
     register,
     handleSubmit,
-    control, // For Controller component
-    watch, // To watch form values
+    control,
+    watch,
     formState: { errors },
     reset,
-    setValue, // To set form values programmatically
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -141,7 +152,11 @@ export default function CreateGigPage() {
     setIsAnalyzingMarket(true);
     setMarketAnalysisData(null);
     setMarketAnalysisError(null);
-    setGigData(null); // Clear previous full gig data
+    setGigData(null);
+    setIntroVideoAssets(null);
+    setIntroVideoAssetsError(null);
+    setGeneratedVideoSceneImages({});
+
 
     try {
         const result = await analyzeMarketStrategyAction({ mainKeyword: keyword, userGigConcept: concept });
@@ -185,28 +200,28 @@ export default function CreateGigPage() {
     }
 
     setIsLoading(true);
-    setGigData(null); // Clear previous full gig data if any, but keep marketAnalysisData
+    setGigData(null);
     setCurrentMainKeyword(null);
     setProgress(0);
+    setIntroVideoAssets(null);
+    setIntroVideoAssetsError(null);
+    setGeneratedVideoSceneImages({});
 
     const progressInterval = setInterval(() => {
        setProgress((prev) => {
-        // Stop incrementing if it's near 100% and data hasn't arrived, to avoid fake completion.
-        if (prev >= 95 && !gigData) { // Check against gigData for this progress
+        if (prev >= 95 && !gigData) {
           return 95;
         }
         if (prev >= 100) {
             clearInterval(progressInterval);
             return 100;
         }
-        // Dynamic increment: faster at start, slower at end.
         const increment = gigData ? 10 : (prev < 30 ? 5 : (prev < 70 ? 2 : 1));
         return Math.min(prev + increment, 99);
       });
     }, 300);
 
     try {
-      // Pass marketAnalysisData to generateFullGig if it exists
       const result = await generateFullGig(data.mainKeyword, marketAnalysisData || undefined);
       clearInterval(progressInterval);
       setProgress(100);
@@ -292,25 +307,29 @@ export default function CreateGigPage() {
     }
   };
 
-  const handleRecreateImage = async () => {
-    if (!gigData || !gigData.imagePrompts || gigData.imagePrompts.length === 0) {
+  const handleRecreateImage = async (imagePromptsToUse?: string[]) => {
+    const prompts = imagePromptsToUse || gigData?.imagePrompts;
+    if (!prompts || prompts.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Cannot Recreate Images',
-        description: 'Image prompts are missing. Please generate a gig first.',
+        description: 'Image prompts are missing.',
       });
-      return;
+      return null;
     }
 
     setIsRecreatingImage(true);
     try {
-      const result = await regenerateGigImageAction({ imagePrompts: gigData.imagePrompts });
+      const result = await regenerateGigImageAction({ imagePrompts: prompts });
       if (result.imageDataUris && result.imageDataUris.length > 0) {
-        setGigData(prevData => ({ ...prevData!, imageDataUris: result.imageDataUris, error: undefined }));
+        if (!imagePromptsToUse) { // Only update main gigData if not for a specific scene
+            setGigData(prevData => ({ ...prevData!, imageDataUris: result.imageDataUris, error: undefined }));
+        }
         toast({
           title: 'Images Recreated!',
           description: 'New gig images have been generated.',
         });
+        return result.imageDataUris;
       } else if (result.error) {
          toast({
           variant: 'destructive',
@@ -327,6 +346,7 @@ export default function CreateGigPage() {
     } finally {
       setIsRecreatingImage(false);
     }
+    return null;
   };
 
   const handleRegenerateTitle = async () => {
@@ -366,6 +386,63 @@ export default function CreateGigPage() {
       });
     } finally {
       setIsRegeneratingTitle(false);
+    }
+  };
+
+  const handleGenerateIntroVideoAssets = async () => {
+    if (!gigData || !gigData.title || !gigData.description || !currentMainKeyword) {
+      toast({
+        variant: 'destructive',
+        title: 'Cannot Generate Video Assets',
+        description: 'Key gig information (title, description, keyword) is missing. Please generate the main gig first.',
+      });
+      return;
+    }
+    setIsGeneratingIntroVideoAssets(true);
+    setIntroVideoAssets(null);
+    setIntroVideoAssetsError(null);
+    setGeneratedVideoSceneImages({});
+
+    try {
+      const result = await generateIntroVideoAssetsAction({
+        mainKeyword: currentMainKeyword,
+        gigTitle: gigData.title,
+        gigDescription: gigData.description,
+        targetAudience: marketAnalysisData?.targetAudienceHint || userGigConcept, // Example, adjust as needed
+      });
+
+      if ('error' in result) {
+        setIntroVideoAssetsError(result.error);
+        toast({
+          variant: 'destructive',
+          title: 'Video Assets Generation Failed',
+          description: result.error,
+        });
+      } else {
+        setIntroVideoAssets(result);
+        setGigData(prev => ({...prev!, introVideoAssets: result}));
+        toast({
+          title: 'Intro Video Blueprint Generated!',
+          description: 'Assets for your gig intro video are ready.',
+        });
+      }
+    } catch (error: any) {
+      const msg = error.message || 'An unexpected error occurred during video asset generation.';
+      setIntroVideoAssetsError(msg);
+      toast({
+        variant: 'destructive',
+        title: 'Video Assets Error',
+        description: msg,
+      });
+    } finally {
+      setIsGeneratingIntroVideoAssets(false);
+    }
+  };
+
+  const handleGenerateVideoSceneImage = async (prompt: string, sceneIndex: number) => {
+    const imageDataUris = await handleRecreateImage([prompt]); // Pass prompt as an array
+    if (imageDataUris && imageDataUris[0]) {
+        setGeneratedVideoSceneImages(prev => ({...prev, [sceneIndex]: imageDataUris[0]}));
     }
   };
 
@@ -434,7 +511,7 @@ export default function CreateGigPage() {
     }
   };
 
- const handleDownloadImage = (imageDataUri: string | undefined, index: number, type: 'hero' | 'sample') => {
+ const handleDownloadImage = (imageDataUri: string | undefined, index: number, type: 'hero' | 'sample' | 'video-scene') => {
     if (imageDataUri) {
       const link = document.createElement('a');
       link.href = imageDataUri;
@@ -492,7 +569,7 @@ export default function CreateGigPage() {
     );
   }
 
-  const anyActionLoading = isLoading || isRefreshingTags || isRecreatingImage || isRegeneratingTitle || isAnalyzingMarket;
+  const anyActionLoading = isLoading || isRefreshingTags || isRecreatingImage || isRegeneratingTitle || isAnalyzingMarket || isGeneratingIntroVideoAssets;
 
   return (
     <div className="min-h-screen flex flex-col items-center p-4 md:p-8 bg-background text-foreground">
@@ -522,6 +599,16 @@ export default function CreateGigPage() {
         }
         .markdown-content em {
           font-style: italic;
+        }
+        .script-content {
+          white-space: pre-wrap; /* Preserves line breaks from the script string */
+          font-family: var(--font-geist-sans);
+          line-height: 1.7;
+          color: hsl(var(--muted-foreground));
+          background-color: hsl(var(--secondary));
+          padding: 1rem;
+          border-radius: 0.5rem;
+          box-shadow: inset 0 2px 4px 0 rgba(0,0,0,0.05);
         }
       `}</style>
       <header className="w-full max-w-5xl mb-10 p-4 rounded-lg bg-card shadow-md">
@@ -621,7 +708,7 @@ export default function CreateGigPage() {
 
         {isAnalyzingMarket && (
              <div className="mt-10 space-y-3">
-                <Progress value={progress} className="w-full h-3" /> {/* You might want a separate progress for analysis or a simpler loader */}
+                <Progress value={progress} className="w-full h-3" /> {}
                 <p className="text-md text-center text-muted-foreground">AI is researching the market... This might take a moment.</p>
             </div>
         )}
@@ -887,7 +974,7 @@ export default function CreateGigPage() {
                 )}
                 {(gigData.imageDataUris && gigData.imageDataUris.length > 0) && (
                     <div className="flex flex-col sm:flex-row sm:space-x-3 space-y-3 sm:space-y-0 mt-8 w-full justify-center">
-                        <Button onClick={handleRecreateImage} variant="outline" className="shadow-md w-full sm:w-auto" disabled={anyActionLoading}>
+                        <Button onClick={() => handleRecreateImage()} variant="outline" className="shadow-md w-full sm:w-auto" disabled={anyActionLoading}>
                             {isRecreatingImage ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : (
@@ -903,6 +990,102 @@ export default function CreateGigPage() {
             </div>
         </GigResultSection>
 
+        {/* Section for Intro Video Assets */}
+            {gigData && !gigData.error && !isLoading && (
+            <GigResultSection title="AI-Generated Intro Video Blueprint" icon={Video} titleClassName="border-l-4 border-primary bg-primary/10 text-primary" contentClassName="p-4 sm:p-5">
+                {!introVideoAssets && !isGeneratingIntroVideoAssets && !introVideoAssetsError && (
+                <div className="text-center py-4">
+                    <Button onClick={handleGenerateIntroVideoAssets} disabled={anyActionLoading}>
+                    <Wand2 className="mr-2 h-5 w-5" />
+                    Generate Intro Video Blueprint
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">Create assets for a short (15-30s) intro video for your gig.</p>
+                </div>
+                )}
+                {isGeneratingIntroVideoAssets && (
+                <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-3 text-muted-foreground">AI is drafting your video blueprint...</p>
+                </div>
+                )}
+                {introVideoAssetsError && !isGeneratingIntroVideoAssets && (
+                <Alert variant="destructive" className="my-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Video Blueprint Error</AlertTitle>
+                    <AlertDescription>{introVideoAssetsError}</AlertDescription>
+                </Alert>
+                )}
+                {introVideoAssets && !isGeneratingIntroVideoAssets && (
+                <div className="space-y-6 p-4 bg-secondary rounded-lg shadow-inner">
+                    <div>
+                    <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Clapperboard className="w-5 h-5 mr-2" />Video Concept:</h4>
+                    <p className="text-sm text-muted-foreground">{introVideoAssets.videoConcept}</p>
+                    </div>
+                    <div>
+                    <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Clock className="w-5 h-5 mr-2" />Suggested Duration:</h4>
+                    <p className="text-sm text-muted-foreground">{introVideoAssets.suggestedDurationSeconds} seconds</p>
+                    </div>
+                    <div>
+                    <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><FileText className="w-5 h-5 mr-2" />Script / Talking Points:</h4>
+                    <div className="text-sm script-content">{introVideoAssets.script}</div>
+                    </div>
+                    <div>
+                    <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Music2 className="w-5 h-5 mr-2" />Audio Suggestion:</h4>
+                    <p className="text-sm text-muted-foreground">{introVideoAssets.audioSuggestion}</p>
+                    </div>
+                    {introVideoAssets.callToAction && (
+                        <div>
+                            <h4 className="text-md font-semibold text-primary mb-1 flex items-center"><Megaphone className="w-5 h-5 mr-2" />Suggested Call to Action:</h4>
+                            <p className="text-sm text-muted-foreground">{introVideoAssets.callToAction}</p>
+                        </div>
+                    )}
+                    <div>
+                    <h4 className="text-md font-semibold text-primary mb-2 flex items-center"><ImageIcon className="w-5 h-5 mr-2" />Visual Scene Prompts:</h4>
+                    <div className="space-y-4">
+                        {introVideoAssets.visualPrompts.map((prompt, index) => (
+                        <Card key={index} className="bg-card p-3 shadow-sm">
+                            <p className="text-xs italic text-muted-foreground mb-2">Prompt {index + 1}: "{prompt}"</p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleGenerateVideoSceneImage(prompt, index)}
+                                disabled={isRecreatingImage || anyActionLoading}
+                                className="w-full sm:w-auto text-xs"
+                            >
+                            {isRecreatingImage && !generatedVideoSceneImages[index] ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
+                            Generate Image for Scene {index + 1}
+                            </Button>
+                            {generatedVideoSceneImages[index] && (
+                                <div className="mt-3 flex flex-col items-center">
+                                    <NextImage
+                                        src={generatedVideoSceneImages[index]}
+                                        alt={`Generated image for video scene ${index + 1}`}
+                                        width={300}
+                                        height={200}
+                                        className="rounded-md border border-border object-cover aspect-video"
+                                        data-ai-hint="video scene visual"
+                                    />
+                                    <Button 
+                                        onClick={() => handleDownloadImage(generatedVideoSceneImages[index], index, 'video-scene')} 
+                                        variant="outline" 
+                                        size="xs" 
+                                        className="mt-2 text-xs"
+                                        disabled={anyActionLoading}
+                                    >
+                                        <Download className="mr-1.5 h-3 w-3" />
+                                        Download Scene {index + 1}
+                                    </Button>
+                                </div>
+                            )}
+                        </Card>
+                        ))}
+                    </div>
+                    </div>
+                </div>
+                )}
+            </GigResultSection>
+            )}
+
 
             <div className="text-center mt-16">
               <Button
@@ -910,6 +1093,9 @@ export default function CreateGigPage() {
                     setGigData(null);
                     setMarketAnalysisData(null);
                     setMarketAnalysisError(null);
+                    setIntroVideoAssets(null);
+                    setIntroVideoAssetsError(null);
+                    setGeneratedVideoSceneImages({});
                     setProgress(0);
                     setCurrentMainKeyword(null);
                     setUserGigConcept('');

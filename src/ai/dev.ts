@@ -15,4 +15,5 @@ import '@/ai/flows/suggest-requirements.ts';
 import '@/ai/flows/generate-gig-image.ts';
 import '@/ai/flows/regenerate-gig-title.ts'; // Added for title regeneration
 import '@/ai/flows/analyze-market-strategy.ts'; // Added new market analysis flow
+import '@/ai/flows/generate-intro-video-assets.ts'; // Added for intro video assets
 
