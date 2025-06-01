@@ -52,6 +52,7 @@ import {
   Mic,
   Captions,
   CheckCircle, // Added for success toasts
+  X, // Added missing X icon
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
