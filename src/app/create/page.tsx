@@ -52,7 +52,7 @@ import {
   Mic,
   Captions,
   CheckCircle,
-  X,
+  X, // Ensured X is imported
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -110,8 +110,10 @@ export default function CreateGigPage() {
   const sceneTimerRef = useRef<NodeJS.Timeout | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [currentSpokenText, setCurrentSpokenText] = useState<string>('');
+  
   const voicesLoadedRef = useRef(false);
   const voiceLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scriptSentencesRef = useRef<string[]>([]); // To store parsed sentences for captioning
 
 
   useEffect(() => {
@@ -486,6 +488,12 @@ export default function CreateGigPage() {
       } else {
         setIntroVideoAssets(result);
         setGigData(prev => ({...prev!, introVideoAssets: result}));
+        
+        if (result.script) { // Pre-parse script into sentences
+            scriptSentencesRef.current = result.script.match(/[^.!?]+[.!?]*/g) || [result.script];
+        } else {
+            scriptSentencesRef.current = [];
+        }
 
         toast({
           title: (
@@ -549,46 +557,27 @@ export default function CreateGigPage() {
 
   useEffect(() => {
     isPlayingPreviewRef.current = isPlayingPreview;
+  }, [isPlayingPreview]);
+  useEffect(() => {
     isPreviewModalOpenRef.current = isPreviewModalOpen;
+  }, [isPreviewModalOpen]);
+   useEffect(() => {
     currentPreviewSceneIndexRef.current = currentPreviewSceneIndex;
-  }, [isPlayingPreview, isPreviewModalOpen, currentPreviewSceneIndex]);
+  }, [currentPreviewSceneIndex]);
 
 
   const closePreviewModal = () => {
-    console.log("closePreviewModal called");
-    setIsPlayingPreview(false);
-    setIsPreviewModalOpen(false);
-    setCurrentPreviewSceneIndex(0);
-    setCurrentSpokenText('');
-
-    if (voiceLoadTimeoutRef.current) {
-      clearTimeout(voiceLoadTimeoutRef.current);
-      voiceLoadTimeoutRef.current = null;
-    }
-    voicesLoadedRef.current = false; // Reset voice loaded flag
-
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        console.log("Cancelling any active speech synthesis.");
-        window.speechSynthesis.cancel();
-    }
-    if (utteranceRef.current) {
-        utteranceRef.current.onboundary = null;
-        utteranceRef.current.onend = null;
-        utteranceRef.current.onerror = null;
-        utteranceRef.current = null;
-        console.log("Utterance cleared.");
-    }
-     if (sceneTimerRef.current) {
-        clearTimeout(sceneTimerRef.current);
-        sceneTimerRef.current = null;
-        console.log("Scene timer cleared.");
-    }
+    console.log("[closePreviewModal] Called.");
+    setIsPlayingPreview(false); // This will trigger the useEffect for !isPlayingPreview
+    setIsPreviewModalOpen(false); // This will trigger onOpenChange for the Dialog
+    // Further cleanup is handled in useEffect[!isPlayingPreview] and Dialog's onOpenChange(false)
   };
 
   // Animation and scene transition logic
   useEffect(() => {
-    console.log(`Animation useEffect: isPlaying=${isPlayingPreview}, modalOpen=${isPreviewModalOpen}, sceneIndex=${currentPreviewSceneIndex}`);
-    if (sceneTimerRef.current) { // Clear previous timer
+    console.log(`[Animation useEffect] Triggered. isPlaying=${isPlayingPreview}, modalOpen=${isPreviewModalOpen}, sceneIndex=${currentPreviewSceneIndex}`);
+    if (sceneTimerRef.current) {
+        console.log("[Animation useEffect] Clearing existing scene timer.");
         clearTimeout(sceneTimerRef.current);
         sceneTimerRef.current = null;
     }
@@ -596,41 +585,48 @@ export default function CreateGigPage() {
     if (isPlayingPreview && isPreviewModalOpen && introVideoAssets && introVideoAssets.visualPrompts && introVideoAssets.visualPrompts.length > 0) {
       const numScenes = introVideoAssets.visualPrompts.length;
       if (numScenes === 0) {
-          console.warn("Animation useEffect: No scenes to play.");
+          console.warn("[Animation useEffect] No scenes to play. Stopping preview.");
           setIsPlayingPreview(false);
           return;
       }
       const totalDurationMs = (introVideoAssets.suggestedDurationSeconds || 20) * 1000;
       const durationPerSceneMs = Math.max(1000, totalDurationMs / numScenes);
-      console.log(`Animation useEffect: Playing scene ${currentPreviewSceneIndex + 1}/${numScenes}. Duration per scene: ${durationPerSceneMs}ms`);
+      console.log(`[Animation useEffect] Playing scene ${currentPreviewSceneIndex + 1}/${numScenes}. Duration per scene: ${durationPerSceneMs}ms`);
 
       if (currentPreviewSceneIndex < numScenes - 1) {
         sceneTimerRef.current = setTimeout(() => {
-          if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) { // Check refs before updating state
-            console.log(`Animation Timer: Advancing to scene ${currentPreviewSceneIndexRef.current + 2}`);
+          // Check refs before updating state from timeout
+          if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) {
+            console.log(`[Animation Timer] Advancing to scene ${currentPreviewSceneIndexRef.current + 2}`);
             setCurrentPreviewSceneIndex(prevIndex => prevIndex + 1);
+          } else {
+            console.log("[Animation Timer] Conditions no longer met for advancing scene (e.g., preview stopped).");
           }
         }, durationPerSceneMs);
       } else { // Last scene has played
         sceneTimerRef.current = setTimeout(() => {
           if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) {
-             console.log("Animation Timer: Last scene finished. Checking speech status.");
-            // If speech is still going, its onend handler will set isPlayingPreview to false.
+            console.log("[Animation Timer] Last scene finished visually. Speech status:", window.speechSynthesis.speaking);
+            // If speech is still going, its onend handler will eventually set isPlayingPreview to false.
             // If no speech or speech ended early, stop preview here.
             if (!window.speechSynthesis.speaking || !utteranceRef.current) {
-                console.log("Animation Timer: Speech not active, stopping preview.");
-                setIsPlayingPreview(false);
+                console.log("[Animation Timer] Speech not active or utterance cleared, stopping preview.");
+                setIsPlayingPreview(false); // This will trigger the !isPlayingPreview effect for cleanup
             } else {
-                console.log("Animation Timer: Speech still active, onend will handle stopping preview.");
+                 console.log("[Animation Timer] Speech still active, onend will handle stopping preview if not already handled.");
             }
           }
         }, durationPerSceneMs + 500); // Add a little buffer for the last caption/speech
       }
+    } else if (!isPlayingPreview) {
+        console.log("[Animation useEffect] isPlayingPreview is false. Ensuring timer is cleared.");
+        // This cleanup is now more robustly handled in the effect for !isPlayingPreview
     }
 
+    // Cleanup for this effect instance (e.g., if dependencies change mid-timer)
     return () => {
       if (sceneTimerRef.current) {
-        console.log("Animation useEffect cleanup: Clearing scene timer.");
+        console.log("[Animation useEffect cleanup] Clearing scene timer due to re-run or unmount.");
         clearTimeout(sceneTimerRef.current);
         sceneTimerRef.current = null;
       }
@@ -638,194 +634,237 @@ export default function CreateGigPage() {
   }, [isPlayingPreview, currentPreviewSceneIndex, isPreviewModalOpen, introVideoAssets]);
 
 
-  // Effect to stop everything if modal is closed or preview stopped by other means
+  // Effect to stop everything if modal is closed OR preview stopped by other means
   useEffect(() => {
     if (!isPlayingPreview) {
-      console.log("useEffect[!isPlayingPreview]: Preview stopped. Cleaning up.");
+      console.log("[useEffect !isPlayingPreview] Preview stopped. Cleaning up speech, timers, and utterance.");
       if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
-        console.log("useEffect[!isPlayingPreview]: cancelling speech.");
-        window.speechSynthesis.cancel();
+        console.log("[useEffect !isPlayingPreview] Cancelling active speech synthesis.");
+        window.speechSynthesis.cancel(); // Stop any ongoing speech
       }
-      setCurrentSpokenText('');
+      setCurrentSpokenText(''); // Clear captions
+
       if (sceneTimerRef.current) {
+        console.log("[useEffect !isPlayingPreview] Clearing scene timer.");
         clearTimeout(sceneTimerRef.current);
         sceneTimerRef.current = null;
       }
       if (utteranceRef.current) {
+        console.log("[useEffect !isPlayingPreview] Clearing utterance event handlers and ref.");
         utteranceRef.current.onboundary = null;
         utteranceRef.current.onend = null;
         utteranceRef.current.onerror = null;
         utteranceRef.current = null;
       }
        if (voiceLoadTimeoutRef.current) {
+        console.log("[useEffect !isPlayingPreview] Clearing voice load timeout.");
         clearTimeout(voiceLoadTimeoutRef.current);
         voiceLoadTimeoutRef.current = null;
       }
-      voicesLoadedRef.current = false;
+      voicesLoadedRef.current = false; // Reset voice loaded flag
     }
   }, [isPlayingPreview]);
 
+  const speakLogic = () => {
+    console.log("[speakLogic] Attempting to speak.");
+    if (!introVideoAssets || !introVideoAssets.script) {
+      console.warn("[speakLogic] No script available to speak.");
+      setCurrentSpokenText("Voiceover: Script not available.");
+      return;
+    }
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      console.warn("[speakLogic] Speech synthesis not supported by browser.");
+      setCurrentSpokenText("Voiceover: Not supported by browser.");
+      toast({ variant: "default", title: "Text-to-Speech Not Available", description: "Your browser does not support speech synthesis." });
+      return;
+    }
+
+    // Cancel any previous speech before starting a new one
+    window.speechSynthesis.cancel();
+    if (utteranceRef.current) { // Clear previous utterance handlers
+        utteranceRef.current.onboundary = null;
+        utteranceRef.current.onend = null;
+        utteranceRef.current.onerror = null;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(introVideoAssets.script);
+    utteranceRef.current = utterance; // Store the current utterance
+
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        voicesLoadedRef.current = true;
+        let selectedVoice = voices.find(voice => voice.lang.startsWith('en') && voice.localService);
+        if (!selectedVoice) selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
+        if (!selectedVoice && voices.some(voice => voice.localService)) selectedVoice = voices.find(voice => voice.localService);
+        if (!selectedVoice && voices.length > 0) selectedVoice = voices[0];
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log('[speakLogic] Using voice:', selectedVoice.name, selectedVoice.lang);
+        } else {
+            console.warn('[speakLogic] Could not find a suitable voice, using browser default.');
+        }
+    } else {
+        console.warn('[speakLogic] No speech synthesis voices available at speak time (should have been caught by voiceschanged).');
+        setCurrentSpokenText("Voiceover: No voices available.");
+        // Allow visual preview to continue without audio
+    }
+
+    utterance.onboundary = (event) => {
+        if (!isPlayingPreviewRef.current || !isPreviewModalOpenRef.current || !utteranceRef.current) return;
+        if (event.name === 'sentence' || event.name === 'word') { // Prefer sentence, fallback to word
+            const scriptText = introVideoAssets?.script || "";
+            let currentSentence = "";
+            
+            // Try to find the current sentence in the pre-parsed sentences
+            if (scriptSentencesRef.current.length > 0) {
+                let charCounter = 0;
+                for (const sentence of scriptSentencesRef.current) {
+                    if (event.charIndex >= charCounter && event.charIndex < charCounter + sentence.length) {
+                        currentSentence = sentence;
+                        break;
+                    }
+                    charCounter += sentence.length;
+                }
+            }
+
+            // Fallback if pre-parsed sentence not found or not working well
+            if (!currentSentence && scriptText) {
+                const start = event.charIndex;
+                let end = scriptText.length;
+                // Find next punctuation mark from start
+                const PUNC = /[.!?;\n]/;
+                const match = PUNC.exec(scriptText.substring(start));
+                if (match) {
+                    end = start + match.index + match[0].length;
+                }
+                currentSentence = scriptText.substring(start, end).trim();
+            }
+
+            if (currentSentence) {
+                console.log(`[SpeakLogic onboundary] Caption: "${currentSentence}" (charIndex: ${event.charIndex})`);
+                setCurrentSpokenText(currentSentence);
+            }
+        }
+    };
+
+    utterance.onend = () => {
+        console.log('[speakLogic onend] Speech finished.');
+        setCurrentSpokenText(''); // Clear caption at the end
+        if (utteranceRef.current) { // Clear handlers from this specific utterance
+            utteranceRef.current.onboundary = null;
+            utteranceRef.current.onend = null;
+            utteranceRef.current.onerror = null;
+            utteranceRef.current = null; // Clear ref
+        }
+        // The visual animation's useEffect will handle stopping isPlayingPreview if it's the last scene.
+    };
+
+    utterance.onerror = (event) => {
+        console.error('[speakLogic onerror] SpeechSynthesisUtterance.onerror:', event);
+        toast({
+            variant: "destructive",
+            title: "Voiceover Error",
+            description: `Could not play voiceover: ${event.error}. Ensure browser voice services are enabled.`,
+        });
+        setCurrentSpokenText(`Voiceover error: ${event.error}`);
+        // Do not set isPlayingPreview to false here; let visual preview attempt to continue.
+        if (utteranceRef.current) { // Clear handlers
+            utteranceRef.current.onboundary = null;
+            utteranceRef.current.onend = null;
+            utteranceRef.current.onerror = null;
+            utteranceRef.current = null; // Clear ref
+        }
+    };
+    
+    if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) {
+        console.log("[speakLogic] Calling window.speechSynthesis.speak()");
+        window.speechSynthesis.speak(utterance);
+    } else {
+        console.log("[speakLogic] Conditions for speaking not met (preview stopped or modal closed).");
+    }
+  };
+
 
   const startPreview = () => {
-    console.log("startPreview called");
+    console.log("[startPreview] Called.");
+    console.log("[startPreview] Current introVideoAssets:", introVideoAssets);
+    console.log("[startPreview] Current generatedVideoSceneImages:", generatedVideoSceneImages);
 
     if (!introVideoAssets || !introVideoAssets.script || !introVideoAssets.visualPrompts || introVideoAssets.visualPrompts.length === 0) {
-        toast({ variant: "destructive", title: "Preview Error", description: "Video assets are incomplete or missing. Cannot start preview." });
-        console.error("startPreview: Video assets incomplete.");
+        toast({ variant: "destructive", title: "Preview Error", description: "Video assets are incomplete or missing (no script or visual prompts). Cannot start preview." });
+        console.error("[startPreview] Video assets incomplete. Aborting.");
         closePreviewModal();
         return;
     }
-    // All scene images must be generated before starting.
+
     const allImagesReady = introVideoAssets.visualPrompts.every((_,index) => typeof generatedVideoSceneImages[index] === 'string');
     if (!allImagesReady) {
-        toast({ variant: "destructive", title: "Preview Error", description: "Not all scene images are generated yet. Please wait or regenerate." });
-        console.error("startPreview: Not all scene images are ready.");
-        // Do not close modal, let user see which images are missing/failed.
+        toast({ variant: "destructive", title: "Preview Error", description: "Not all scene images are generated yet. Please wait or regenerate missing ones." });
+        console.error("[startPreview] Not all scene images are ready. Aborting.");
+        // Don't close modal, let user see which images are missing.
+        // Ensure isPlayingPreview is false if we abort here.
+        if (isPlayingPreview) setIsPlayingPreview(false); 
         return;
+    }
+    
+    if (scriptSentencesRef.current.length === 0 && introVideoAssets.script) {
+        scriptSentencesRef.current = introVideoAssets.script.match(/[^.!?]+[.!?]*/g) || [introVideoAssets.script];
+        console.log("[startPreview] Parsed script into sentences:", scriptSentencesRef.current);
     }
 
 
+    // setIsPreviewModalOpen(true); // This should be handled by Dialog's onOpenChange or button click
     setCurrentPreviewSceneIndex(0);
-    setCurrentSpokenText(''); // Clear previous captions
+    setCurrentSpokenText(''); 
+    console.log("[startPreview] Before setIsPlayingPreview(true). Current isPlayingPreviewRef:", isPlayingPreviewRef.current);
     setIsPlayingPreview(true); // This should trigger the animation useEffect
+    console.log("[startPreview] After setIsPlayingPreview(true) call. State will update in next render.");
 
-    // Attempt speech synthesis
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window && introVideoAssets.script) {
-        console.log("Speech synthesis is available.");
-        const speakLogic = () => {
-            if (!isPlayingPreviewRef.current || !isPreviewModalOpenRef.current) {
-                 console.log("SpeakLogic: Preview stopped or modal closed before execution.");
-                 window.speechSynthesis.cancel();
-                 return;
-            }
-            console.log("SpeakLogic: Attempting to speak script...");
-            window.speechSynthesis.cancel(); // Cancel any previous speech
 
-            const utterance = new SpeechSynthesisUtterance(introVideoAssets.script);
-            utteranceRef.current = utterance; // Store the current utterance
-
-            const voices = window.speechSynthesis.getVoices();
-            if (voices.length > 0) {
-                voicesLoadedRef.current = true; // Mark voices as loaded
-                let selectedVoice = voices.find(voice => voice.lang.startsWith('en') && voice.localService); // Prefer local English voice
-                if (!selectedVoice) selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
-                if (!selectedVoice && voices.some(voice => voice.localService)) selectedVoice = voices.find(voice => voice.localService); // Any local
-                if (!selectedVoice && voices.length > 0) selectedVoice = voices[0]; // Any voice
-
-                if (selectedVoice) {
-                    utterance.voice = selectedVoice;
-                    console.log('SpeakLogic: Using voice:', selectedVoice.name, selectedVoice.lang);
-                } else {
-                    console.warn('SpeakLogic: Could not find a suitable voice, using browser default.');
-                }
-            } else {
-                console.warn('SpeakLogic: No speech synthesis voices available at speak time (should have been caught by voiceschanged).');
-                setCurrentSpokenText("Voiceover: No voices available.");
-                 // Do not return, let preview play without sound if no voices.
-            }
-
-            utterance.onboundary = (event) => {
-                if (!isPlayingPreviewRef.current || !isPreviewModalOpenRef.current) return;
-                 if ((event.name === 'sentence' || event.name === 'word') && introVideoAssets?.script) {
-                    const script = introVideoAssets.script;
-                    let endIndex = script.length;
-                    const punctuationRegex = /[.!?]/g;
-                    let searchStartIndex = event.charIndex > 0 ? event.charIndex -1 : 0; // Start search slightly before for robustness
-                    punctuationRegex.lastIndex = searchStartIndex;
-                    const match = punctuationRegex.exec(script);
-                    if (match && match.index >= event.charIndex) { // Ensure match is after current char
-                        endIndex = match.index + 1;
-                    } else { // Fallback if no punctuation found or it's too early
-                        const nextSpace = script.indexOf(' ', event.charIndex + 20); // Look further ahead
-                        if (nextSpace !== -1) endIndex = nextSpace;
-                    }
-                     const currentCaption = script.substring(event.charIndex, endIndex).trim();
-                     if(currentCaption) {
-                        console.log(`Caption boundary: "${currentCaption}"`);
-                        setCurrentSpokenText(currentCaption);
-                     }
-                }
-            };
-
-            utterance.onend = () => {
-                console.log('SpeakLogic: Speech finished.');
-                setCurrentSpokenText(''); // Clear caption at the end
-                if (isPlayingPreviewRef.current && currentPreviewSceneIndexRef.current >= (introVideoAssets?.visualPrompts?.length ?? 0) -1) {
-                    console.log("SpeakLogic onend: Speech finished on last scene, stopping preview.");
-                    setIsPlayingPreview(false); // Stop preview if speech ends on/after the last scene
-                }
-            };
-
-            utterance.onerror = (event) => {
-                console.error('SpeakLogic: SpeechSynthesisUtterance.onerror:', event);
-                toast({
-                    variant: "destructive",
-                    title: "Voiceover Error",
-                    description: `Could not play voiceover: ${event.error}. Ensure browser voice services are enabled.`,
-                });
-                setCurrentSpokenText('Voiceover error.');
-                if (isPlayingPreviewRef.current) { // Stop preview on critical speech error
-                    setIsPlayingPreview(false);
-                }
-            };
-            
-            // Check again if still playing before speaking
-            if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) {
-                console.log("SpeakLogic: Calling window.speechSynthesis.speak()");
-                window.speechSynthesis.speak(utterance);
-            } else {
-                console.log("SpeakLogic: Preview was stopped or modal closed just before calling .speak()");
-            }
-        };
-
-        // Voice loading logic
+    // Voice loading logic
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         if (window.speechSynthesis.getVoices().length === 0 && !voicesLoadedRef.current) {
-            console.log("startPreview speak: Voices not loaded yet, waiting for 'voiceschanged' event or timeout.");
+            console.log("[startPreview speak] Voices not loaded, waiting for 'voiceschanged' or timeout.");
             setCurrentSpokenText("Voiceover: Loading voices...");
 
             const voiceChangedHandler = () => {
-                console.log("VoiceChangedHandler: 'voiceschanged' event fired.");
+                console.log("[startPreview VoiceChangedHandler] 'voiceschanged' event fired.");
                 window.speechSynthesis.removeEventListener('voiceschanged', voiceChangedHandler);
                 if (voiceLoadTimeoutRef.current) clearTimeout(voiceLoadTimeoutRef.current);
                 voiceLoadTimeoutRef.current = null;
                 voicesLoadedRef.current = true;
-                if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) speakLogic();
+                if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) speakLogic(); else console.log("[startPreview VoiceChangedHandler] Conditions no longer met for speaking.");
             };
             window.speechSynthesis.addEventListener('voiceschanged', voiceChangedHandler);
 
-            // Fallback timer in case 'voiceschanged' doesn't fire reliably
             if (voiceLoadTimeoutRef.current) clearTimeout(voiceLoadTimeoutRef.current);
             voiceLoadTimeoutRef.current = setTimeout(() => {
-                console.log("Voice load fallback timer fired.");
-                window.speechSynthesis.removeEventListener('voiceschanged', voiceChangedHandler); // Ensure listener removed
+                console.log("[startPreview VoiceLoadTimeout] Fallback timer fired.");
+                window.speechSynthesis.removeEventListener('voiceschanged', voiceChangedHandler);
                 if (!voicesLoadedRef.current && window.speechSynthesis.getVoices().length > 0) {
-                     console.log("Voice load fallback: Voices found after timeout.");
+                     console.log("[startPreview VoiceLoadTimeout] Voices found after timeout.");
                      voicesLoadedRef.current = true;
                 } else if (!voicesLoadedRef.current) {
-                    console.warn("Voice load fallback: Voices still not loaded after timeout.");
-                     setCurrentSpokenText("Voiceover: Failed to load voices.");
+                    console.warn("[startPreview VoiceLoadTimeout] Voices still not loaded. TTS may fail.");
+                    setCurrentSpokenText("Voiceover: Failed to load voices in time.");
                 }
-                if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) speakLogic(); // Attempt to speak anyway
-            }, 3000); // 3 seconds fallback
+                if (isPlayingPreviewRef.current && isPreviewModalOpenRef.current) speakLogic(); else console.log("[startPreview VoiceLoadTimeout] Conditions no longer met for speaking post-timeout.");
+            }, 2500); // 2.5 seconds fallback
         } else {
-            console.log("startPreview speak: Voices already available or previously loaded.");
-            voicesLoadedRef.current = true; // Mark as loaded if already available
+            console.log("[startPreview speak] Voices already available or previously loaded. Calling speakLogic directly.");
+            voicesLoadedRef.current = true;
             speakLogic();
         }
-
     } else {
-        console.warn("Speech synthesis not available in this browser.");
-        setCurrentSpokenText("Voiceover: Not supported by browser.");
-        toast({
-            variant: "default",
-            title: "Text-to-Speech Not Available",
-            description: "Your browser does not support speech synthesis.",
-        });
+        console.warn("[startPreview] Speech synthesis not available. Proceeding with visual preview only.");
+        setCurrentSpokenText("Voiceover: Not supported.");
+        // Visual preview will still run based on isPlayingPreview being true.
     }
 };
 
 
-  const allSceneImagesGenerated = introVideoAssets && introVideoAssets.visualPrompts.every((_, index) => typeof generatedVideoSceneImages[index] === 'string');
+  const allSceneImagesGenerated = introVideoAssets && introVideoAssets.visualPrompts && introVideoAssets.visualPrompts.every((_, index) => typeof generatedVideoSceneImages[index] === 'string');
 
 
   const renderPricingPackage = (pkg: SinglePackageDetail, tierName: string) => (
@@ -1528,84 +1567,95 @@ export default function CreateGigPage() {
                             ))}
                         </div>
                     </div>
-                    {allSceneImagesGenerated && introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
-                        <div className="mt-6 text-center">
-                            <Button onClick={() => {
-                                // This will now trigger the onOpenChange handler of the Dialog if isPreviewModalOpen becomes true
-                                setIsPreviewModalOpen(true);
-                                // startPreview() will be called by onOpenChange if modal opens
-                            }} disabled={anyActionLoading || isPlayingPreview}>
-                                <PlayCircle className="mr-2 h-5 w-5" />
-                                Play Animated Preview with Voice
-                            </Button>
-                        </div>
-                    )}
+                   {allSceneImagesGenerated && introVideoAssets && introVideoAssets.visualPrompts.length > 0 && (
+                    <div className="mt-6 text-center">
+                         <Button
+                            onClick={() => {
+                                // The Dialog's onOpenChange will handle calling startPreview if modal opens
+                                if (isPlayingPreviewRef.current) { // If already playing, restart it
+                                    closePreviewModal(); 
+                                    setTimeout(() => {
+                                        setIsPreviewModalOpen(true); 
+                                    }, 100); 
+                                } else {
+                                    setIsPreviewModalOpen(true); 
+                                }
+                            }}
+                            disabled={anyActionLoading || (isGeneratingIntroVideoAssets && !allSceneImagesGenerated) || (!introVideoAssets?.visualPrompts?.length)}
+                        >
+                            {isPlayingPreviewRef.current ? <RefreshCw className="mr-2 h-5 w-5 animate-spin" /> : <PlayCircle className="mr-2 h-5 w-5" />}
+                            {isPlayingPreviewRef.current ? "Restart Preview" : "Play Animated Preview with Voice"}
+                        </Button>
+                    </div>
+                )}
                 </div>
                 )}
             </GigResultSection>
             )}
 
-          <Dialog open={isPreviewModalOpen} onOpenChange={(isOpen) => {
-                if (!isOpen) {
-                    console.log("Dialog onOpenChange: Closing modal.");
-                    closePreviewModal();
+          <Dialog 
+            open={isPreviewModalOpen} 
+            onOpenChange={(isOpen) => {
+                setIsPreviewModalOpen(isOpen); // Sync state with dialog
+                if (isOpen) {
+                    console.log("Dialog onOpenChange: Opening modal, calling startPreview.");
+                    startPreview(); // Call startPreview when modal opens
                 } else {
-                    console.log("Dialog onOpenChange: Opening modal.");
-                    setIsPreviewModalOpen(true); // Explicitly set state
-                    startPreview(); // Attempt to start the preview
+                    console.log("Dialog onOpenChange: Closing modal, calling closePreviewModal.");
+                    closePreviewModal();
                 }
-            }}>
-                <DialogContent className="w-[95vw] max-w-[95vw] h-[90vh] max-h-[90vh] p-0 flex flex-col bg-black text-white overflow-hidden">
-                  <DialogHeader className="p-3 border-b border-gray-700 flex-shrink-0 bg-gray-900">
-                    <div className="flex justify-between items-center">
-                        <DialogTitle className="text-lg flex items-center text-gray-200">
-                            <PlayCircle className="w-5 h-5 mr-2 text-primary" />
-                            Intro Video Preview
-                        </DialogTitle>
-                        {/* ShadCN DialogContent provides its own X button, so no custom one needed here. */}
-                    </div>
-                     <DialogDescription className="text-xs text-gray-400 flex items-center gap-2 pt-1">
-                         <span className="flex items-center"><Mic className="w-3.5 h-3.5 mr-1" /> Voiceover: {isPlayingPreviewRef.current ? (currentSpokenText ? "Playing" : "Loading...") : "Paused/Stopped"}</span>
-                         <span className="flex items-center"><Captions className="w-3.5 h-3.5 mr-1" /> {currentSpokenText ? "Live Caption" : "Captions will appear here"}</span>
-                     </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex-grow flex items-center justify-center overflow-hidden relative p-0 m-0 bg-black">
-                    {isPlayingPreviewRef.current && introVideoAssets && currentPreviewSceneIndexRef.current < introVideoAssets.visualPrompts.length && typeof generatedVideoSceneImages[currentPreviewSceneIndexRef.current] === 'string' ? (
-                      <div className="preview-image-container w-full h-full">
-                        <img
-                          src={generatedVideoSceneImages[currentPreviewSceneIndexRef.current] as string}
-                          alt={`Preview Scene ${currentPreviewSceneIndexRef.current + 1}`}
-                          className="preview-image"
-                        />
-                         {currentSpokenText && (
-                            <div className={`preview-caption-overlay ${currentSpokenText ? 'visible' : ''} custom-scrollbar`}>
-                                {currentSpokenText}
-                            </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="preview-image-container w-full h-full flex flex-col items-center justify-center">
-                        <ImageIcon className="w-24 h-24 text-gray-600" />
-                         <p className="mt-2 text-gray-500">
-                          {isPlayingPreviewRef.current ? `Loading scene ${currentPreviewSceneIndexRef.current + 1}...` : "Preview will play here."}
-                        </p>
-                      </div>
+            }}
+        >
+            <DialogContent className="w-[95vw] max-w-[95vw] h-[90vh] max-h-[90vh] p-0 flex flex-col bg-black text-white overflow-hidden">
+                <DialogHeader className="p-3 border-b border-gray-700 flex-shrink-0 bg-gray-900">
+                <div className="flex justify-between items-center">
+                    <DialogTitle className="text-lg flex items-center text-gray-200">
+                        <PlayCircle className="w-5 h-5 mr-2 text-primary" />
+                        Intro Video Preview
+                    </DialogTitle>
+                    {/* The default X button from DialogContent will be used here */}
+                </div>
+                    <DialogDescription className="text-xs text-gray-400 flex items-center gap-2 pt-1">
+                        <span className="flex items-center"><Mic className="w-3.5 h-3.5 mr-1" /> Voiceover: {isPlayingPreviewRef.current ? (currentSpokenText ? "Playing" : "Loading/Buffering...") : "Paused/Stopped"}</span>
+                        <span className="flex items-center"><Captions className="w-3.5 h-3.5 mr-1" /> {currentSpokenText ? "Live Caption" : "Captions will appear here"}</span>
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex-grow flex items-center justify-center overflow-hidden relative p-0 m-0 bg-black">
+                {isPlayingPreviewRef.current && introVideoAssets && currentPreviewSceneIndexRef.current < introVideoAssets.visualPrompts.length && typeof generatedVideoSceneImages[currentPreviewSceneIndexRef.current] === 'string' ? (
+                    <div className="preview-image-container w-full h-full">
+                    <img
+                        src={generatedVideoSceneImages[currentPreviewSceneIndexRef.current] as string}
+                        alt={`Preview Scene ${currentPreviewSceneIndexRef.current + 1}`}
+                        className="preview-image"
+                    />
+                        {currentSpokenText && (
+                        <div className={`preview-caption-overlay ${currentSpokenText ? 'visible' : ''} custom-scrollbar`}>
+                            {currentSpokenText}
+                        </div>
                     )}
-                  </div>
-                   <div className="p-3 border-t border-gray-700 flex justify-between items-center flex-shrink-0 bg-gray-900">
-                        {introVideoAssets && (
-                             <p className="text-xs text-gray-400">
-                                Scene {isPlayingPreviewRef.current && introVideoAssets.visualPrompts.length > 0 ? currentPreviewSceneIndexRef.current + 1 : '-' } of {introVideoAssets.visualPrompts.length > 0 ? introVideoAssets.visualPrompts.length : '-'}
-                                {' | '}
-                                Duration: {introVideoAssets.suggestedDurationSeconds}s
-                                {' | '}
-                                Music: {introVideoAssets.audioSuggestion || "Not specified"} (manual add)
-                            </p>
-                        )}
-                         {/* Removed the explicit "Close Preview" button from footer */}
-                   </div>
-                </DialogContent>
-              </Dialog>
+                    </div>
+                ) : (
+                    <div className="preview-image-container w-full h-full flex flex-col items-center justify-center">
+                    <ImageIcon className="w-24 h-24 text-gray-600" />
+                    <p className="mt-2 text-gray-500">
+                        {isPlayingPreviewRef.current ? `Loading scene ${currentPreviewSceneIndexRef.current + 1}...` : "Preview will play here."}
+                    </p>
+                    </div>
+                )}
+                </div>
+                <div className="p-3 border-t border-gray-700 flex justify-between items-center flex-shrink-0 bg-gray-900">
+                    {introVideoAssets && (
+                            <p className="text-xs text-gray-400">
+                            Scene {isPlayingPreviewRef.current && introVideoAssets.visualPrompts.length > 0 ? currentPreviewSceneIndexRef.current + 1 : '-' } of {introVideoAssets.visualPrompts.length > 0 ? introVideoAssets.visualPrompts.length : '-'}
+                            {' | '}
+                            Duration: {introVideoAssets.suggestedDurationSeconds}s
+                            {' | '}
+                            Music: {introVideoAssets.audioSuggestion || "Not specified"} (manual add)
+                        </p>
+                    )}
+                </div>
+            </DialogContent>
+            </Dialog>
 
 
             <div className="text-center mt-16">
@@ -1621,7 +1671,7 @@ export default function CreateGigPage() {
                     setCurrentMainKeyword(null);
                     setUserGigConcept('');
                     reset({ mainKeyword: '', userGigConcept: '' });
-                    closePreviewModal(); // Ensure preview is fully reset
+                    if (isPreviewModalOpen) closePreviewModal(); // Ensure preview is fully reset if open
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 variant="outline"
